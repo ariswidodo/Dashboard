@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
-import { Loader2, AlertTriangle, Key } from 'lucide-react';
+import { AdminDashboard } from './components/AdminDashboard';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 export function App() {
   const [session, setSession] = useState<any>(null);
@@ -60,13 +61,23 @@ export function App() {
     );
   }
 
-  return session ? (
-    <Dashboard 
+  if (!session) {
+    return <Login onLoginSuccess={() => {}} />;
+  }
+
+  const userEmail = session.user.email?.toLowerCase();
+  const isAdmin = userEmail === 'admin@epr26.id' || session.user.user_metadata?.role === 'admin';
+
+  return isAdmin ? (
+    <AdminDashboard 
       userEmail={session.user.email} 
       onLogout={() => supabase.auth.signOut()} 
     />
   ) : (
-    <Login onLoginSuccess={() => {}} />
+    <Dashboard 
+      userEmail={session.user.email} 
+      onLogout={() => supabase.auth.signOut()} 
+    />
   );
 }
 

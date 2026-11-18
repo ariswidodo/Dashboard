@@ -1,0 +1,328 @@
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { EprStore } from '../types';
+import { ChangePasswordModal } from './ChangePasswordModal';
+import { Dashboard } from './Dashboard';
+import { 
+  Building2, 
+  MapPin, 
+  Award, 
+  Search, 
+  Filter, 
+  TrendingUp, 
+  DollarSign, 
+  ShieldCheck, 
+  LogOut, 
+  KeyRound, 
+  Eye, 
+  ArrowLeft,
+  Loader2,
+  Users
+} from 'lucide-react';
+
+interface Props {
+  userEmail: string;
+  onLogout: () => void;
+}
+
+export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
+  const [stores, setStores] = useState<EprStore[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedStore, setSelectedStore] = useState<EprStore | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetchAllStores();
+  }, []);
+
+  const fetchAllStores = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('epr_stores')
+        .select('*')
+        .order('target_inc_tax', { ascending: false });
+
+      if (error) throw error;
+      setStores(data || []);
+    } catch (err) {
+      console.error('Error fetching all stores for admin:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatRupiah = (val: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(val || 0);
+  };
+
+  const getCategoryBadge = (cat: string) => {
+    switch (cat?.toUpperCase()) {
+      case 'SUN':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'STAR':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'MOON':
+        return 'bg-sky-100 text-sky-800 border-sky-300';
+      case 'EARTH':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      default:
+        return 'bg-slate-100 text-slate-800 border-slate-300';
+    }
+  };
+
+  // Filter stores
+  const filteredStores = stores.filter((s) => {
+    const matchSearch =
+      s.epr_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.epr_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.city.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCategory =
+      selectedCategory === 'ALL' || s.category?.toUpperCase() === selectedCategory;
+    return matchSearch && matchCategory;
+  });
+
+  // Calculate totals
+  const totalTargetAll = stores.reduce((acc, curr) => acc + (Number(curr.target_inc_tax) || 0), 0);
+  const totalMonthlyAll = stores.reduce((acc, curr) => acc + (Number(curr.target_monthly) || 0), 0);
+
+  // Jika admin sedang menginspeksi 1 toko tertentu
+  if (selectedStore) {
+    return (
+      <div className="relative">
+        <div className="bg-slate-900 text-white px-6 py-2.5 flex items-center justify-between text-xs sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Mode Inspeksi Administrator — Melihat data toko: <strong>{selectedStore.epr_name}</strong></span>
+          </div>
+          <button
+            onClick={() => setSelectedStore(null)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Kembali ke Ringkasan Semua Toko</span>
+          </button>
+        </div>
+        <Dashboard userEmail={userEmail} onLogout={onLogout} previewStore={selectedStore} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-16">
+      {/* Top Navbar */}
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 backdrop-blur-md bg-white/90">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 text-base tracking-tight">
+                    Portal Administrator EPR FY26
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-2xs font-bold border border-indigo-200 uppercase tracking-wide">
+                    ADMIN
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500 hidden sm:block">
+                  Monitoring Seluruh Partner Retail EPR
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsPasswordModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
+              >
+                <KeyRound className="w-4 h-4 text-slate-500" />
+                <span className="hidden sm:inline">Ganti Password</span>
+              </button>
+
+              <button
+                onClick={onLogout}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Keluar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+        {/* Metric Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Total Target All */}
+          <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Target FY26 (24 Toko)</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <DollarSign className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-slate-900">
+              {formatRupiah(totalTargetAll)}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Akumulasi Target Include Tax 11%</p>
+          </div>
+
+          {/* Total Monthly Run-rate */}
+          <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Target Per Bulan</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-slate-900">
+              {formatRupiah(totalMonthlyAll)}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Target gabungan per bulan (11 bulan)</p>
+          </div>
+
+          {/* Total Stores Count */}
+          <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Partner Toko</span>
+              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                <Building2 className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-extrabold text-slate-900">
+              {stores.length} Toko
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Wilayah Jawa Tengah (AM: ARIS)</p>
+          </div>
+        </div>
+
+        {/* Store Table & Filter Section */}
+        <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Daftar Seluruh Toko EPR FY26</h3>
+              <p className="text-xs text-slate-500">Klik "Lihat Detail" untuk memeriksa rincian & tracking tiap toko</p>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative min-w-[240px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari toko / kode / kota..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Filter Category */}
+              <div className="flex items-center gap-1.5">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="py-2 px-3 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <option value="ALL">Semua Kategori</option>
+                  <option value="SUN">SUN</option>
+                  <option value="STAR">STAR</option>
+                  <option value="MOON">MOON</option>
+                  <option value="EARTH">EARTH</option>
+                  <option value="CRESCENT">CRESCENT</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+              <p className="text-xs">Memuat data 24 toko...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 text-2xs uppercase font-semibold text-slate-500 tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-6">No</th>
+                    <th className="py-3 px-6">Kode EPR</th>
+                    <th className="py-3 px-6">Nama Toko</th>
+                    <th className="py-3 px-6">Kota</th>
+                    <th className="py-3 px-6">Kategori</th>
+                    <th className="py-3 px-6">Target FY26 (Inc Tax)</th>
+                    <th className="py-3 px-6">Target Bulanan</th>
+                    <th className="py-3 px-6 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredStores.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-10 text-center text-xs text-slate-400">
+                        Tidak ada toko yang cocok dengan pencarian "{searchTerm}".
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStores.map((st, idx) => (
+                      <tr key={st.id || st.epr_code} className="hover:bg-slate-50/80 transition">
+                        <td className="py-3.5 px-6 text-xs text-slate-400 font-mono">{idx + 1}</td>
+                        <td className="py-3.5 px-6 font-mono text-xs font-semibold text-indigo-600">
+                          {st.epr_code}
+                        </td>
+                        <td className="py-3.5 px-6 font-semibold text-slate-900">
+                          {st.epr_name}
+                        </td>
+                        <td className="py-3.5 px-6 text-xs text-slate-500">
+                          {st.city}
+                        </td>
+                        <td className="py-3.5 px-6">
+                          <span className={`px-2.5 py-0.5 rounded text-2xs font-semibold border ${getCategoryBadge(st.category)}`}>
+                            {st.category}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-6 font-medium text-slate-800">
+                          {formatRupiah(st.target_inc_tax)}
+                        </td>
+                        <td className="py-3.5 px-6 text-xs text-slate-600">
+                          {formatRupiah(st.target_monthly)}
+                        </td>
+                        <td className="py-3.5 px-6 text-right">
+                          <button
+                            onClick={() => setSelectedStore(st)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Lihat Detail</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modal Ganti Password */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
+    </div>
+  );
+};

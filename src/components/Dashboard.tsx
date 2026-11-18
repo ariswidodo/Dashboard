@@ -22,20 +22,36 @@ import {
 interface Props {
   userEmail: string;
   onLogout: () => void;
+  previewStore?: EprStore | null;
 }
 
-export const Dashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
-  const [store, setStore] = useState<EprStore | null>(null);
+export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }) => {
+  const [store, setStore] = useState<EprStore | null>(previewStore || null);
   const [sales, setSales] = useState<SalesRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewStore);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [inputAchievement, setInputAchievement] = useState<string>('');
   const [savingSales, setSavingSales] = useState(false);
 
   useEffect(() => {
-    fetchStoreData();
-  }, []);
+    if (previewStore) {
+      setStore(previewStore);
+      fetchSalesForStore(previewStore.id);
+    } else {
+      fetchStoreData();
+    }
+  }, [previewStore]);
+
+  const fetchSalesForStore = async (storeId: string) => {
+    const { data: salesData } = await supabase
+      .from('sales_records')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('month', { ascending: true });
+    setSales(salesData || []);
+    setLoading(false);
+  };
 
   const fetchStoreData = async () => {
     setLoading(true);
