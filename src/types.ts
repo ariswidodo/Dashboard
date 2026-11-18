@@ -16,6 +16,20 @@ export interface EprStore {
   created_at?: string;
 }
 
+export interface EppStore {
+  id: string;
+  epp_code: string;
+  epp_name: string;
+  company_name: string;
+  territory: string;
+  area: string;
+  city: string;
+  area_type: string;
+  username: string;
+  user_id?: string;
+  created_at?: string;
+}
+
 export interface SalesRecord {
   id: string;
   store_id: string;
