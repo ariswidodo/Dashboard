@@ -1,0 +1,1895 @@
+{
+  "meta": {
+    "source": "Q3-Booster-Up / booster_data.json",
+    "generated_at": "2026-11-16 17:29:46",
+    "period_start": "2026-10-01",
+    "period_end": "2026-12-31",
+    "total_participants": 82,
+    "by_ae": {
+      "ARIS": 20,
+      "HERDIAN": 42,
+      "SIGIT": 20
+    }
+  },
+  "program_partners": [
+    {
+      "code": "EPR-1002",
+      "name": "AL BUMI IT STORE",
+      "city": "KENDAL",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 8,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 2
+      }
+    },
+    {
+      "code": "EPR-1628",
+      "name": "CV ARTADINATA PERKASA ABADI",
+      "city": "JEPARA",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1967",
+      "name": "CV DIAMOND INDO",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1966",
+      "name": "CV MITRA SARANA TEKNIK",
+      "city": "AMBARAWA",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1999",
+      "name": "CV NAFIRI",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-0038",
+      "name": "SINAR JAYA COMPUTER",
+      "city": "KUDUS",
+      "am": "ARIS",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 52,
+        "tx_count": 7
+      }
+    },
+    {
+      "code": "EPR-1005",
+      "name": "CV PRIBUMI JAYA KOMPUTAMA",
+      "city": "PATI",
+      "am": "ARIS",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 2,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 1
+      }
+    },
+    {
+      "code": "EPR-0650",
+      "name": "CV RAJA PRINT SOLUTION",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "STAR",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 53,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 30,
+        "tx_count": 8
+      }
+    },
+    {
+      "code": "EPR-1410",
+      "name": "CV SAFRINDO PERKASA",
+      "city": "JEPARA",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 1,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 1
+      }
+    },
+    {
+      "code": "EPR-1816",
+      "name": "CV SALAM JAYA KOMPUTINDO",
+      "city": "KUDUS",
+      "am": "ARIS",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 28,
+        "qty_ink_bottle": 720,
+        "qty_cons_other": 0,
+        "tx_count": 14
+      }
+    },
+    {
+      "code": "EPR-1197",
+      "name": "CV YESTOYA ABADI",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "STAR",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 29,
+        "qty_ink_bottle": 900,
+        "qty_cons_other": 141,
+        "tx_count": 46
+      }
+    },
+    {
+      "code": "EPR-1906",
+      "name": "ELLITE COMPUTER WELERI",
+      "city": "WELERI",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-0733",
+      "name": "MICRO PRINTER",
+      "city": "PATI",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 26,
+        "tx_count": 5
+      }
+    },
+    {
+      "code": "EPR-0267",
+      "name": "PT HARRISMA PRATAMAJAYA",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 108,
+        "qty_ink_bottle": 300,
+        "qty_cons_other": 1500,
+        "tx_count": 29
+      }
+    },
+    {
+      "code": "EPR-0054",
+      "name": "PT HETERO NIAGA GLOBAL",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 5140,
+        "qty_cons_other": 0,
+        "tx_count": 15
+      }
+    },
+    {
+      "code": "EPR-1413",
+      "name": "PT INFOKOM PUTRA KENCANA",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 20,
+        "qty_ink_bottle": 360,
+        "qty_cons_other": 366,
+        "tx_count": 16
+      }
+    },
+    {
+      "code": "EPR-0881",
+      "name": "UD PIXEL",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 47,
+        "tx_count": 4
+      }
+    },
+    {
+      "code": "EPR-2013",
+      "name": "CV JAYA MAKMUR STATIONARY",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumables",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumables",
+      "scheme": "consumables",
+      "reward": 3900000,
+      "targets": {
+        "ink_664_003": 4000,
+        "cons_other": 100
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1768",
+      "name": "CV KARYA HIDUP MULYA",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "SUN",
+      "package_type": "Consumables",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumables",
+      "scheme": "consumables",
+      "reward": 20000000,
+      "targets": {
+        "ink_664_003": 18200,
+        "cons_other": 300
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 10320,
+        "qty_cons_other": 469,
+        "tx_count": 36
+      }
+    },
+    {
+      "code": "EPR-1845",
+      "name": "CV BUMI RAYA INDONESIA",
+      "city": "SEMARANG",
+      "am": "ARIS",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-0052",
+      "name": "PRIMA COMPUTER",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 8,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 33,
+        "tx_count": 13
+      }
+    },
+    {
+      "code": "EPR-0150",
+      "name": "PT ANDALAS SURYA GEMILANG",
+      "city": "SOLO",
+      "am": "HERDIAN",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 900,
+        "qty_cons_other": 0,
+        "tx_count": 3
+      }
+    },
+    {
+      "code": "EPR-0280",
+      "name": "PT MANXI IMAGE PERKASA",
+      "city": "SOLO",
+      "am": "HERDIAN",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 45,
+        "qty_ink_bottle": 180,
+        "qty_cons_other": 30,
+        "tx_count": 21
+      }
+    },
+    {
+      "code": "EPR-0648",
+      "name": "CV PRIMA MITRA ABADI",
+      "city": "SOLO",
+      "am": "HERDIAN",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 99,
+        "qty_ink_bottle": 780,
+        "qty_cons_other": 63,
+        "tx_count": 19
+      }
+    },
+    {
+      "code": "EPR-0651",
+      "name": "PT ASTON KOMPUTER INDONESIA",
+      "city": "SALATIGA",
+      "am": "HERDIAN",
+      "tier": "STAR",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 85,
+        "qty_ink_bottle": 150,
+        "qty_cons_other": 26,
+        "tx_count": 64
+      }
+    },
+    {
+      "code": "EPR-0661",
+      "name": "CV RISC COMPUTER",
+      "city": "SOLO",
+      "am": "HERDIAN",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 41,
+        "qty_ink_bottle": 30,
+        "qty_cons_other": 55,
+        "tx_count": 14
+      }
+    },
+    {
+      "code": "EPR-0857",
+      "name": "CV SUKSES SEJATI COMPUTAMA",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 552,
+        "qty_ink_bottle": 1790,
+        "qty_cons_other": 141,
+        "tx_count": 56
+      }
+    },
+    {
+      "code": "EPR-0874",
+      "name": "CV SURYA ABADI",
+      "city": "PACITAN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 6,
+        "qty_ink_bottle": 240,
+        "qty_cons_other": 10,
+        "tx_count": 7
+      }
+    },
+    {
+      "code": "EPR-0955",
+      "name": "CV ANNISA COMPUTER",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 60,
+        "qty_ink_bottle": 1266,
+        "qty_cons_other": 225,
+        "tx_count": 21
+      }
+    },
+    {
+      "code": "EPR-1064",
+      "name": "PT SETIA HARAPAN COMPUTER",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 53,
+        "qty_ink_bottle": 720,
+        "qty_cons_other": 99,
+        "tx_count": 26
+      }
+    },
+    {
+      "code": "EPR-1099",
+      "name": "CV MEDIA TEKNOLOGI",
+      "city": "PURWOREJO",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1121",
+      "name": "CV RAYA SOLUSINDO",
+      "city": "WONOGIRI",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 10,
+        "qty_ink_bottle": 70,
+        "qty_cons_other": 10,
+        "tx_count": 6
+      }
+    },
+    {
+      "code": "EPR-1515",
+      "name": "CV DIMENSI TIGA",
+      "city": "BOYOLALI",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 3,
+        "qty_ink_bottle": 22,
+        "qty_cons_other": 0,
+        "tx_count": 5
+      }
+    },
+    {
+      "code": "EPR-1679",
+      "name": "CV STAR MEDIA COMPUTAMA",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 60,
+        "qty_ink_bottle": 420,
+        "qty_cons_other": 19,
+        "tx_count": 18
+      }
+    },
+    {
+      "code": "EPR-1864",
+      "name": "CV REX COMPUTER",
+      "city": "MAGELANG",
+      "am": "HERDIAN",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 45,
+        "qty_ink_bottle": 820,
+        "qty_cons_other": 20,
+        "tx_count": 28
+      }
+    },
+    {
+      "code": "EPR-1796",
+      "name": "CV SEMITRA ADA SOLUSI",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 155,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 77,
+        "tx_count": 24
+      }
+    },
+    {
+      "code": "EPR-1850",
+      "name": "PT SENTRA KRIYA EDUKASI",
+      "city": "KLATEN",
+      "am": "HERDIAN",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 70,
+        "qty_ink_bottle": 480,
+        "qty_cons_other": 120,
+        "tx_count": 23
+      }
+    },
+    {
+      "code": "EPR-1908",
+      "name": "CV SUMBER KARYA INOVATIF",
+      "city": "SLEMAN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 2,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 36,
+        "tx_count": 11
+      }
+    },
+    {
+      "code": "EPR-1910",
+      "name": "CV VICTORY PRIMA NUSA",
+      "city": "SURAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 10,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 1
+      }
+    },
+    {
+      "code": "EPR-1914",
+      "name": "CV ADD KOMPUTER",
+      "city": "SLEMAN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 5,
+        "qty_ink_bottle": 480,
+        "qty_cons_other": 16,
+        "tx_count": 17
+      }
+    },
+    {
+      "code": "EPR-2002",
+      "name": "PT INTERNASIONAL SURYA KOMPUTINDO",
+      "city": "SUKOHARJO",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 163,
+        "qty_ink_bottle": 450,
+        "qty_cons_other": 75,
+        "tx_count": 53
+      }
+    },
+    {
+      "code": "EPR-1110",
+      "name": "BASS COMPUTER",
+      "city": "CILACAP",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 15,
+        "qty_ink_bottle": 360,
+        "qty_cons_other": 13,
+        "tx_count": 21
+      }
+    },
+    {
+      "code": "EPR-1669",
+      "name": "CV KARTIKA DWIGUNA",
+      "city": "CILACAP",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 17,
+        "qty_ink_bottle": 660,
+        "qty_cons_other": 37,
+        "tx_count": 30
+      }
+    },
+    {
+      "code": "EPR-1866",
+      "name": "CV PUTRI KITA KOMPUTAMA",
+      "city": "CILACAP",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 5,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 1
+      }
+    },
+    {
+      "code": "EPR-1988",
+      "name": "CV SMART KARYA BERSAMA",
+      "city": "CILACAP",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 34,
+        "qty_ink_bottle": 240,
+        "qty_cons_other": 15,
+        "tx_count": 13
+      }
+    },
+    {
+      "code": "EPR-2025",
+      "name": "CV FLASH GENERAL TECHNOLOGY",
+      "city": "CILACAP",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 40,
+        "tx_count": 2
+      }
+    },
+    {
+      "code": "EPR-0839",
+      "name": "CV BERKAH LAPAK UTAMA",
+      "city": "KEBUMEN",
+      "am": "SIGIT",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 30,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 90,
+        "tx_count": 8
+      }
+    },
+    {
+      "code": "EPR-1987",
+      "name": "CV KEBUMEN PRIMA SARANA",
+      "city": "KEBUMEN",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 13,
+        "tx_count": 4
+      }
+    },
+    {
+      "code": "EPR-2007",
+      "name": "CV TECHNOLOGY COMPUTER MANDIRI",
+      "city": "KEBUMEN",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 7,
+        "qty_ink_bottle": 20,
+        "qty_cons_other": 0,
+        "tx_count": 4
+      }
+    },
+    {
+      "code": "EPR-1818",
+      "name": "CV OMEGA JAYA SEJAHTERA",
+      "city": "PEKALONGAN",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 32,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 1,
+        "tx_count": 15
+      }
+    },
+    {
+      "code": "EPR-1905",
+      "name": "INFITECH MEDIA UTAMA",
+      "city": "PEKALONGAN",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 14,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 3
+      }
+    },
+    {
+      "code": "EPR-0148",
+      "name": "CV IRAMA PUTRA MANDIRI",
+      "city": "PEMALANG",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 41,
+        "qty_ink_bottle": 80,
+        "qty_cons_other": 0,
+        "tx_count": 14
+      }
+    },
+    {
+      "code": "EPR-1093",
+      "name": "CV YOTTA TECH",
+      "city": "PURBALINGGA",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 10,
+        "qty_ink_bottle": 480,
+        "qty_cons_other": 0,
+        "tx_count": 7
+      }
+    },
+    {
+      "code": "EPR-0649",
+      "name": "CV TRIPIO COMPUTER",
+      "city": "PURWOKERTO",
+      "am": "SIGIT",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 80,
+        "tx_count": 6
+      }
+    },
+    {
+      "code": "EPR-1094",
+      "name": "CV SISWOYO",
+      "city": "PURWOKERTO",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1620",
+      "name": "PT ALFA GIG",
+      "city": "PURWOKERTO",
+      "am": "SIGIT",
+      "tier": "EARTH",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 53,
+        "qty_ink_bottle": 1980,
+        "qty_cons_other": 16,
+        "tx_count": 33
+      }
+    },
+    {
+      "code": "EPR-1496",
+      "name": "PT PUTRAPUTRA LANGGENG JAYA",
+      "city": "TEGAL",
+      "am": "SIGIT",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 42,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 3
+      }
+    },
+    {
+      "code": "EPR-1585",
+      "name": "CV NEW LIFE COMPUTER",
+      "city": "TEGAL",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 11,
+        "tx_count": 4
+      }
+    },
+    {
+      "code": "EPR-1830",
+      "name": "CV REPUBLIK ADI JAYA",
+      "city": "TEGAL",
+      "am": "SIGIT",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 5,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 1
+      }
+    },
+    {
+      "code": "EPR-0261",
+      "name": "CHANNEL COMPUTER",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1862",
+      "name": "CV ALAM SEJAHTERA JAYA COMPUTER",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 44,
+        "qty_ink_bottle": 315,
+        "qty_cons_other": 20,
+        "tx_count": 27
+      }
+    },
+    {
+      "code": "EPR-1543",
+      "name": "CV AMINOS COMPUTER",
+      "city": "MUNTILAN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 35,
+        "qty_ink_bottle": 600,
+        "qty_cons_other": 0,
+        "tx_count": 5
+      }
+    },
+    {
+      "code": "EPR-1405",
+      "name": "CV FAHANA CITRA",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "STAR",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 156,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 44,
+        "tx_count": 13
+      }
+    },
+    {
+      "code": "EPR-0943",
+      "name": "CV INDOPRINT SEJAHTERA ABADI",
+      "city": "SLEMAN",
+      "am": "HERDIAN",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumer",
+      "scheme": "unit_ink",
+      "reward": 10000000,
+      "targets": {
+        "low_end": 250,
+        "mid_high": 25,
+        "ink_bottle": 2000
+      },
+      "progress": {
+        "qty_consumer": 95,
+        "qty_ink_bottle": 1200,
+        "qty_cons_other": 86,
+        "tx_count": 67
+      }
+    },
+    {
+      "code": "EPR-1781",
+      "name": "CV METROCOM",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 15,
+        "tx_count": 3
+      }
+    },
+    {
+      "code": "EPR-1512",
+      "name": "PT DINAMIKA PERKASA JAYA",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 111,
+        "qty_ink_bottle": 1800,
+        "qty_cons_other": 0,
+        "tx_count": 10
+      }
+    },
+    {
+      "code": "EPR-0770",
+      "name": "RAJA INK YOGYAKARTA",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 50,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 48,
+        "tx_count": 13
+      }
+    },
+    {
+      "code": "EPR-1681",
+      "name": "CV CAHAYA PUTRA MANDIRI",
+      "city": "KARANGANYAR",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1727",
+      "name": "CV FM. 90",
+      "city": "KEBUMEN",
+      "am": "SIGIT",
+      "tier": "STAR",
+      "package_type": "Consumables",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumables",
+      "scheme": "consumables",
+      "reward": 10000000,
+      "targets": {
+        "ink_664_003": 9000,
+        "cons_other": 200
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 4500,
+        "qty_cons_other": 90,
+        "tx_count": 19
+      }
+    },
+    {
+      "code": "EPR-1726",
+      "name": "CV ANUGERAH DAFA LESTARI",
+      "city": "TEGAL",
+      "am": "SIGIT",
+      "tier": "MOON",
+      "package_type": "Consumables",
+      "pkg": "STAR",
+      "pack_name": "STAR Consumables",
+      "scheme": "consumables",
+      "reward": 10000000,
+      "targets": {
+        "ink_664_003": 9000,
+        "cons_other": 200
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 3540,
+        "qty_cons_other": 0,
+        "tx_count": 15
+      }
+    },
+    {
+      "code": "EPR-0151",
+      "name": "PT SADAR JAYA MANDIRI",
+      "city": "SOLO",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumables",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumables",
+      "scheme": "consumables",
+      "reward": 3900000,
+      "targets": {
+        "ink_664_003": 4000,
+        "cons_other": 100
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 540,
+        "qty_cons_other": 0,
+        "tx_count": 10
+      }
+    },
+    {
+      "code": "EPR-0191",
+      "name": "CV JAYA UTAMA SUKSES",
+      "city": "YOGYAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumables",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumables",
+      "scheme": "consumables",
+      "reward": 3900000,
+      "targets": {
+        "ink_664_003": 4000,
+        "cons_other": 100
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1623",
+      "name": "CV TERA",
+      "city": "BOYOLALI",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumables",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumables",
+      "scheme": "consumables",
+      "reward": 3900000,
+      "targets": {
+        "ink_664_003": 4000,
+        "cons_other": 100
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-2011",
+      "name": "CV ARTHA USAHA",
+      "city": "SRAGEN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 14,
+        "qty_ink_bottle": 150,
+        "qty_cons_other": 5,
+        "tx_count": 8
+      }
+    },
+    {
+      "code": "EPR-2012",
+      "name": "CV MANDIRI JAYA",
+      "city": "SURAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 18,
+        "qty_ink_bottle": 508,
+        "qty_cons_other": 32,
+        "tx_count": 45
+      }
+    },
+    {
+      "code": "EPR-1008",
+      "name": "CV MICRO COMPUTER",
+      "city": "MAGELANG",
+      "am": "HERDIAN",
+      "tier": "MOON",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 42,
+        "qty_ink_bottle": 150,
+        "qty_cons_other": 39,
+        "tx_count": 22
+      }
+    },
+    {
+      "code": "EPR-1713",
+      "name": "SIGMA COMPUTER",
+      "city": "KLATEN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 7,
+        "qty_ink_bottle": 120,
+        "qty_cons_other": 25,
+        "tx_count": 7
+      }
+    },
+    {
+      "code": "EPR-1797",
+      "name": "CV RAGAM PERSADA",
+      "city": "KLATEN",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 12,
+        "qty_ink_bottle": 750,
+        "qty_cons_other": 17,
+        "tx_count": 34
+      }
+    },
+    {
+      "code": "EPR-0942",
+      "name": "CV TUNGGAL OPTI PERSADA",
+      "city": "MAGELANG",
+      "am": "HERDIAN",
+      "tier": "SUN",
+      "package_type": "Consumer",
+      "pkg": "SUN",
+      "pack_name": "SUN Consumer",
+      "scheme": "unit_ink",
+      "reward": 20000000,
+      "targets": {
+        "low_end": 500,
+        "mid_high": 40,
+        "ink_bottle": 4200
+      },
+      "progress": {
+        "qty_consumer": 163,
+        "qty_ink_bottle": 1992,
+        "qty_cons_other": 194,
+        "tx_count": 301
+      }
+    },
+    {
+      "code": "EPR-1847",
+      "name": "CV BLEZA OPTIMA",
+      "city": "WONOGIRI",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    },
+    {
+      "code": "EPR-1911",
+      "name": "CV DAYA ELANG UTAMA",
+      "city": "SURAKARTA",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 3,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 1
+      }
+    },
+    {
+      "code": "EPR-2010",
+      "name": "CV NIZAM ANUGRAH PRATAMA",
+      "city": "WONOGIRI",
+      "am": "HERDIAN",
+      "tier": "CRESCENT",
+      "package_type": "Consumer",
+      "pkg": "MOON",
+      "pack_name": "MOON Consumer",
+      "scheme": "unit_ink",
+      "reward": 3900000,
+      "targets": {
+        "low_end": 120,
+        "mid_high": 10,
+        "ink_bottle": 450
+      },
+      "progress": {
+        "qty_consumer": 0,
+        "qty_ink_bottle": 0,
+        "qty_cons_other": 0,
+        "tx_count": 0
+      }
+    }
+  ]
+}

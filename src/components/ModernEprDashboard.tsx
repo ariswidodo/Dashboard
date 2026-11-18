@@ -73,11 +73,24 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch data utama EPR (target, realisasi, 24 toko)
       const resp = await fetch(`/data/epr_data.json?t=${Date.now()}`);
-      if (!resp.ok) {
-        throw new Error(`Gagal memuat data (HTTP ${resp.status})`);
-      }
+      if (!resp.ok) throw new Error(`Gagal memuat data (HTTP ${resp.status})`);
       const json: EprFullData = await resp.json();
+
+      // Fetch program_partners dari booster data (sumber: Q3-Booster-Up repo)
+      // Data ini berisi 82 peserta Booster Up dari semua AM (ARIS 20, HERDIAN 42, SIGIT 20)
+      try {
+        const boosterResp = await fetch(`/data/program_partners.json?t=${Date.now()}`);
+        if (boosterResp.ok) {
+          const boosterJson = await boosterResp.json();
+          // Override program_partners dengan data yang benar
+          json.program_partners = boosterJson.program_partners || json.program_partners;
+        }
+      } catch (boosterErr) {
+        console.warn('Gagal memuat program_partners.json, pakai fallback dari epr_data.json', boosterErr);
+      }
+
       setData(json);
     } catch (err: any) {
       console.error('Fetch epr_data error:', err);
@@ -1101,11 +1114,10 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       <div style={{ padding: '48px 24px', textAlign: 'center' }}>
                         <div style={{ fontSize: '36px', marginBottom: '12px' }}>📋</div>
                         <p style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                          Toko Anda Tidak Terdaftar sebagai Peserta Paket Booster Up
+                          Toko Anda Tidak Terdaftar sebagai Peserta Paket Booster Up Q3 FY26
                         </p>
                         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto' }}>
-                          Program Booster Up Q3 FY26 diikuti oleh toko retail di area AM HERDIAN &amp; SIGIT.
-                          Hubungi AM Anda (ARIS) untuk informasi program selanjutnya.
+                          Hubungi AM Anda untuk informasi program berikutnya.
                         </p>
                       </div>
                     );
