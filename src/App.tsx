@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { Login } from './components/Login';
-import { Dashboard } from './components/Dashboard';
-import { AdminDashboard } from './components/AdminDashboard';
-import { EppDashboard } from './components/EppDashboard';
+import { ModernEprDashboard } from './components/ModernEprDashboard';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
 export function App() {
@@ -103,28 +101,11 @@ export function App() {
     return <Login onLoginSuccess={() => {}} />;
   }
 
-  // Routing berdasarkan peran pengguna
-  if (userRole === 'admin') {
-    return (
-      <AdminDashboard 
-        userEmail={session.user.email} 
-        onLogout={() => supabase.auth.signOut()} 
-      />
-    );
-  }
-
-  if (userRole === 'epp') {
-    return (
-      <EppDashboard 
-        userEmail={session.user.email} 
-        onLogout={() => supabase.auth.signOut()} 
-      />
-    );
-  }
-
+  // Tampilkan Modern Power BI Dashboard yang adaptif terhadap peran pengguna (Admin / EPP / Toko Retail EPR)
   return (
-    <Dashboard 
+    <ModernEprDashboard 
       userEmail={session.user.email} 
+      userRole={userRole || 'epr'} 
       onLogout={() => supabase.auth.signOut()} 
     />
   );
