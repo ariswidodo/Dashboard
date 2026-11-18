@@ -19,27 +19,34 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     const cleanUsername = username.trim().toLowerCase();
-    // Jika user menginput username tanpa @, otomatis gunakan domain internal @epr26.id
-    const emailToUse = cleanUsername.includes('@')
-      ? cleanUsername
-      : `${cleanUsername}@epr26.id`;
+
+    // Jika sudah ada @, gunakan langsung. Kalau tidak, coba kedua domain.
+    const domains = cleanUsername.includes('@')
+      ? [cleanUsername]
+      : [`${cleanUsername}@epr26.id`, `${cleanUsername}@epp26.id`];
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: emailToUse,
-        password: password,
-      });
+      let lastError: any = null;
 
-      if (authError) {
-        if (authError.message.includes('Invalid login credentials')) {
-          throw new Error('Username atau password salah. Silakan periksa kembali kredensial Anda.');
+      for (const emailToUse of domains) {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
+          email: emailToUse,
+          password: password,
+        });
+
+        if (!authError && data.user) {
+          onLoginSuccess();
+          return;
         }
-        throw authError;
+        lastError = authError;
       }
 
-      if (data.user) {
-        onLoginSuccess();
+      // Semua domain gagal
+      if (lastError?.message?.includes('Invalid login credentials') ||
+          lastError?.message?.includes('invalid_credentials')) {
+        throw new Error('Username atau password salah. Silakan periksa kembali kredensial Anda.');
       }
+      throw lastError;
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat masuk. Silakan coba lagi.');
     } finally {
