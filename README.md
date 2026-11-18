@@ -1,43 +1,45 @@
 # EPR Achievement Dashboard FY26
 
-> **Portal monitoring multi-tenant** pencapaian target penjualan seluruh toko retail Epson Partner Retail (EPR) dan Partner Premier (EPP) FY26 — tampilan Power BI Analytics, role-based access, strict read-only untuk partner.
+> **Portal monitoring multi-tenant** pencapaian target penjualan seluruh toko retail Epson Partner Retail (EPR) dan Partner Premier (EPP) FY26 — tampilan Power BI Analytics, role-based access, strict read-only untuk partner, dan tracking bulanan program paket berjalan.
 
 ---
 
 ## Demo & Referensi Data
 
-| | URL |
+| | URL / Sumber |
 |---|---|
 | **Referensi dashboard** | [ariswidodo.github.io/EPR](https://ariswidodo.github.io/EPR/) |
-| **Data sumber** | GitHub repo `ariswidodo/EPR` → `epr_data.json` |
+| **Data Pembelian Utama** | GitHub repo `ariswidodo/EPR` → `public/data/epr_data.json` |
+| **Data Paket Berjalan (Booster Up)** | GitHub repo `ariswidodo/Q3-Booster-Up` → `public/data/program_partners.json` |
 | **Supabase project** | `nhuaoaujwfnpymhfgnbf.supabase.co` |
 
 ---
 
-## Arsitektur Sistem
+## Arsitektur Sistem & Hak Akses
 
 ```
 Login  ──► Deteksi peran otomatis (Supabase Auth)
                │
                ├─► ADMIN  (admin@epr26.id)
                │     • Tab 1 – Overview & Target H2: lihat & filter 24 toko EPR
-               │     • Tab 2 – Paketan Berjalan: 62 peserta Booster Up (semua AM)
-               │     • Tab 3 – Kontribusi EPP & Audit: semua 19 EPP lengkap
-               │     • Drawer detail per toko (termasuk sumber EPP)
+               │     • Tab 2 – Paketan Berjalan: 82 peserta Booster Up (ARIS, HERDIAN, SIGIT)
+               │               dengan tracking bulanan (Okt, Nov, Des, Sudah Beli, Kurang Berapa)
+               │     • Tab 3 – Kontribusi EPP & Audit: seluruh 19 EPP nasional lengkap
+               │     • Drawer inspeksi detail toko (termasuk supplier EPP)
                │
                ├─► EPP  (computa, topdistribusi, compumart, rakaperkasa)
                │     • Tab 1 – Overview: monitoring 24 toko EPR (read-only)
-               │     • Tab 2 – Paketan Berjalan: lihat program Booster Up
-               │     • Tab 3 – Kontribusi EPP: baris MILIK SENDIRI penuh +
-               │               baris EPP lain dianonimkan "EPP Lain #N"
+               │     • Tab 2 – Paketan Berjalan: monitoring 82 peserta Booster Up lengkap
+               │               dengan tracking bulanan (Okt, Nov, Des, Sudah Beli, Kurang Berapa)
+               │     • Tab 3 – DIHILANGKAN (hanya untuk Admin demi kerahasiaan)
                │     • Domain login: username@epp26.id
                │
-               └─► EPR  (sinarjaya, harrisma, dst…)
-                     • Tab 1 – Overview: hanya data TOKO SENDIRI
-                     • Tab 2 – Paketan Berjalan: pesan "tidak terdaftar"
-                               jika toko tidak ikut program (area AM ARIS)
-                     • Tab 3 – tersembunyi
-                     • Subtitle topbar menampilkan nama toko yang tepat
+               └─► EPR  (sinarjaya, harrisma, albumi, dst…)
+                     • Tab 1 – Overview: terisolasi strictly hanya data TOKO SENDIRI
+                     • Tab 2 – Paketan Berjalan: terisolasi paket Booster Up TOKO SENDIRI
+                               dengan tracking bulanan (Sudah Beli berapa, Kurang berapa)
+                     • Tab 3 – DIHILANGKAN
+                     • Subtitle topbar otomatis menampilkan nama toko yang sesuai
                      • Domain login: username@epr26.id
 ```
 
@@ -48,11 +50,12 @@ Login  ──► Deteksi peran otomatis (Supabase Auth)
 | Layer | Teknologi |
 |---|---|
 | Frontend | React 18 + TypeScript + Vite 8 |
-| Styling | Tailwind CSS v4 + Custom PBI CSS (`styles-pbi.css`) |
+| Styling | Tailwind CSS v4 + Custom Power BI CSS (`styles-pbi.css`) |
 | Icons | Lucide React |
 | Backend / Auth | Supabase (PostgreSQL + GoTrue Auth) |
-| Keamanan Data | Row-Level Security (RLS) PostgreSQL |
-| Data Pembelian | `public/data/epr_data.json` (dari repo `ariswidodo/EPR`) |
+| Keamanan Data | Row-Level Security (RLS) PostgreSQL (Strict Read-Only) |
+| Data Utama | `public/data/epr_data.json` (dari repo `ariswidodo/EPR`) |
+| Data Booster | `public/data/program_partners.json` (dari repo `ariswidodo/Q3-Booster-Up`) |
 | Hosting | Cloudflare Pages (Free Tier) |
 
 ---
@@ -79,9 +82,10 @@ epr-dashboard/
 │
 ├── public/
 │   └── data/
-│       ├── epr_data.json             ← Data utama: 24 toko, 12 bulan, semua kategori
+│       ├── epr_data.json             ← Data utama: 24 toko, 12 bulan fiskal, semua kategori
+│       ├── program_partners.json     ← 82 peserta Booster Up & tracking bulanan (Okt, Nov, Des)
 │       ├── program_rules.json        ← Skema reward Booster Up
-│       └── peserta_booster.csv       ← Daftar peserta program
+│       └── peserta_booster.csv       ← Master CSV peserta booster
 │
 └── src/
     ├── main.tsx
@@ -94,7 +98,7 @@ epr-dashboard/
     │   └── supabase.ts               ← Supabase client + guard isSupabaseConfigured
     └── components/
         ├── Login.tsx                 ← Login (multi-domain: @epr26.id → @epp26.id)
-        ├── ModernEprDashboard.tsx    ← Dashboard utama (1 file, 3 tab, semua role)
+        ├── ModernEprDashboard.tsx    ← Dashboard utama (Overview, Booster Up, Audit)
         └── ChangePasswordModal.tsx   ← Modal ganti password mandiri
 ```
 
@@ -104,15 +108,15 @@ epr-dashboard/
 
 ### Admin
 
-| Email | Password | Akses |
+| Email | Password | Hak Akses |
 |---|---|---|
-| `admin@epr26.id` | `AdminEpr2026!` | Full access — semua data EPR + EPP |
+| `admin@epr26.id` | `AdminEpr2026!` | Full access — semua data EPR, EPP, Booster Up, & Audit |
 
 ---
 
 ### EPR — Toko Retail (24 Akun)
 
-> Login menggunakan **Email** (`username@epr26.id`) dan password di bawah.
+> Login menggunakan **Email** (`username@epr26.id`) atau **Username** saja.
 
 | Kode | Nama Toko | Username / Email | Password Default |
 |---|---|---|---|
@@ -145,7 +149,7 @@ epr-dashboard/
 
 ### EPP — Partner Premier Aktif (4 Akun Lokal Jawa Tengah)
 
-> Login menggunakan **Email** (`username@epp26.id`).
+> Login menggunakan **Email** (`username@epp26.id`) atau **Username** saja.
 
 | Kode | Nama EPP | Kota | Email | Password Default |
 |---|---|---|---|---|
@@ -158,9 +162,37 @@ epr-dashboard/
 
 ---
 
-## Setup Lengkap
+## Hak Akses Per Tab Dashboard
 
-### Langkah 1 — Setup Supabase
+| Tab | Admin | EPP | EPR |
+|---|---|---|---|
+| **Overview & Target H2** | ✅ Semua 24 toko + slicers | ✅ Semua 24 toko + slicers | ✅ Terisolasi: hanya toko sendiri |
+| **Paketan Berjalan (Booster Up)** | ✅ Semua 82 peserta + tracking bulanan | ✅ Semua 82 peserta + tracking bulanan | ✅ Terisolasi: paket toko sendiri + tracking bulanan |
+| **Kontribusi EPP & Audit** | ✅ 19 EPP lengkap | ❌ **Dihilangkan** | ❌ **Dihilangkan** |
+
+---
+
+## Fitur Tab Paketan Berjalan (Q3 Booster Up)
+
+Tab **Paketan Berjalan** memantau pencapaian program kuartal 3 (1 Okt – 31 Des 2026) yang disinkronkan dari data resmi `ariswidodo/Q3-Booster-Up`:
+
+1. **Cakupan 82 Peserta**:
+   - **ARIS**: 20 Toko *(termasuk Sinar Jaya, Al Bumi, Hetero, dkk)*
+   - **HERDIAN**: 42 Toko
+   - **SIGIT**: 20 Toko
+2. **Tracking Progres Bulanan**:
+   - Kolom **Okt 2026**, **Nov 2026**, dan **Des 2026** memantau qty pembelian bulanan.
+3. **Sudah Beli vs Kurang Berapa**:
+   - **Sudah Beli**: Menampilkan total qty terverifikasi beserta rincian sub-kategori (*Low End, Mid High, Ink Bottle* atau *664/003, Lainnya*).
+   - **Kurang (Gap)**: Menghitung selisih real-time terhadap target paket. Jika sudah memenuhi target, berstatus `✓ Terpenuhi`.
+4. **Skema Reward Otomatis**:
+   - **SUN**: Rp 20.000.000
+   - **STAR**: Rp 10.000.000
+   - **MOON**: Rp 3.900.000
+
+---
+
+## Setup Lengkap Supabase
 
 1. Buka [Supabase Dashboard](https://supabase.com/dashboard) → pilih project Anda.
 2. **Authentication → Providers → Email** → nonaktifkan **"Confirm email"**.
@@ -196,104 +228,24 @@ epr-dashboard/
    notify pgrst, 'reload schema';
    ```
 
-#### Troubleshooting Umum Supabase
-
-| Error | Penyebab | Solusi |
-|---|---|---|
-| `Database error querying schema` | Token NULL di `auth.users` | Jalankan query langkah 4 |
-| `null value in column provider_id` | GoTrue versi baru wajib `provider_id` | Sudah ditangani di `seed_*.sql` |
-| Subtitle toko salah setelah login | `epr_code` belum di JWT | Jalankan `patch_user_metadata.sql`, lalu logout & login ulang |
-| "Akun belum terhubung data toko" | `user_id` di `epr_stores` kosong | Jalankan query langkah 5 |
-
 ---
 
-### Langkah 2 — Konfigurasi Environment
+## Uji Coba & Deploy
 
-Salin `.env.example` → `.env`, isi dengan nilai dari **Supabase → Project Settings → API**:
-
-```env
-VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbg...
-```
-
----
-
-### Langkah 3 — Uji Coba Lokal
-
+### Jalankan Lokal
 ```powershell
 npm install
 npm run dev
 # Buka http://localhost:5173
 ```
 
----
-
-### Langkah 4 — Deploy ke GitHub
-
+### Build & Deploy Cloudflare Pages
 ```powershell
-git remote add origin https://github.com/USERNAME_ANDA/epr-dashboard.git
-git branch -M main
-git push -u origin main
+npm run build
 ```
-
----
-
-### Langkah 5 — Deploy ke Cloudflare Pages
-
-1. [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages → Pages → Connect to Git**
-2. Pilih repositori `epr-dashboard`
-3. Pengaturan build:
-   - **Framework**: `Vite`
-   - **Build command**: `npm run build`
-   - **Output directory**: `dist`
-4. Tambahkan **Environment Variables** di Settings:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-5. **Save and Deploy** → aktif di `https://epr-dashboard.pages.dev`
-
----
-
-## Keamanan & Hak Akses
-
-Semua hak akses dikunci di tingkat database PostgreSQL via **Row-Level Security (RLS)**.
-
-| Role | Hak Akses | Catatan |
-|---|---|---|
-| **Admin** | Full Read & Write | Satu-satunya yang bisa edit data master & realisasi |
-| **EPP** | Read-Only | Lihat monitoring 24 EPR; identitas EPP kompetitor **dirahasiakan** |
-| **EPR** | Strict Read-Only | Hanya data toko sendiri; tidak ada form input/edit |
-| **Semua** | Ganti password | Hanya untuk akun login pribadi masing-masing |
-
-> Sekalipun seseorang memodifikasi kode frontend di browser, database PostgreSQL Supabase secara mutlak menolak `INSERT`, `UPDATE`, atau `DELETE` dari akun selain Admin.
-
----
-
-## Hak Akses Per Tab Dashboard
-
-| Tab | Admin | EPP | EPR |
-|---|---|---|---|
-| Overview & Target H2 | ✅ Semua 24 toko + filter | ✅ Semua 24 toko + filter | ✅ Hanya toko sendiri |
-| Paketan Berjalan | ✅ 62 peserta (semua AM) | ✅ 62 peserta (semua AM) | ⚠️ Pesan "tidak terdaftar" (AM ARIS tidak ikut Booster Up) |
-| Kontribusi EPP & Audit | ✅ 19 EPP lengkap | ✅ Baris sendiri penuh + EPP lain dianonimkan | ❌ Tab tidak muncul |
-
----
-
-## Data Pembelian
-
-Data utama dashboard dibaca dari file statis:
-
-```
-public/data/epr_data.json
-```
-
-File ini di-*clone* dari repo `ariswidodo/EPR` dan berisi:
-- **24 partner EPR** (area AM ARIS, Jawa Tengah)
-- **12 bulan** data pembelian FY26 (Apr 2025 – Mar 2026)
-- **4 kategori**: Consumer, Consumables, Scanner, Dotmatrix
-- **62 peserta** program Booster Up (AM HERDIAN + SIGIT)
-- **19 EPP** ringkasan kontribusi supply
-
-Untuk memperbarui data, ganti file `public/data/epr_data.json` lalu `npm run build` ulang.
+1. [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages → Pages → Connect to Git**.
+2. Build command: `npm run build`, Output directory: `dist`.
+3. Set Environment Variables: `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`.
 
 ---
 
