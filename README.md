@@ -67,12 +67,12 @@ Login  ──► Sistem deteksi peran otomatis
 ## Akun Default
 
 ### Admin
-| Username | Password | Akses |
-|---|---|---|
-| `admin` | `AdminEpr2026!` | Seluruh data EPR + EPP |
+| Username | Domain Internal | Password Default | Akses |
+|---|---|---|---|
+| `admin` | `admin@epr26.id` | `AdminEpr2026!` | Seluruh data EPR + EPP (Full Access) |
 
 ### EPR — Toko Retail (24 Akun)
-> Semua username menggunakan domain `@epr26.id`
+> Username cukup diinput nama tokonya saja (tanpa `@`). Sistem otomatis memetakan ke domain internal `@epr26.id`.
 
 | Kode | Nama Toko | Username | Password Default |
 |---|---|---|---|
@@ -102,14 +102,16 @@ Login  ──► Sistem deteksi peran otomatis
 | EPR-2013 | CV JAYA MAKMUR STATIONARY | `jayamakmur` | `Epr2026!JayaMakmur` |
 
 ### EPP — Partner Premier Aktif (4 Akun Lokal Jawa Tengah)
-| Kode | Nama EPP | Kota | Username | Password Default |
-|---|---|---|---|---|
-| EPP-0050 | COMPUTA | Yogyakarta | `computa` | `Epp2026!Computa` |
-| EPP-0055 | TOP DISTRIBUSI | Yogyakarta | `topdistribusi` | `Epp2026!TopDistribusi` |
-| EPP-0056 | COMPUMART | Semarang | `compumart` | `Epp2026!Compumart` |
-| EPP-0245 | PT RAKA PERKASA TEKNOLOGI | Yogyakarta | `rakaperkasa` | `Epp2026!RakaPerkasa` |
+> Username cukup diinput namanya saja. Sistem otomatis mencoba domain `@epr26.id` lalu fallback ke `@epp26.id`. Pengguna juga bisa memasukkan email lengkap.
 
-> Semua password dapat diganti sendiri oleh pengguna melalui tombol **"Ganti Password"** di dalam dashboard masing-masing.
+| Kode | Nama EPP | Kota | Username | Domain Internal | Password Default |
+|---|---|---|---|---|---|
+| EPP-0050 | COMPUTA | Yogyakarta | `computa` | `computa@epp26.id` | `Epp2026!Computa` |
+| EPP-0055 | TOP DISTRIBUSI | Yogyakarta | `topdistribusi` | `topdistribusi@epp26.id` | `Epp2026!TopDistribusi` |
+| EPP-0056 | COMPUMART | Semarang | `compumart` | `compumart@epp26.id` | `Epp2026!Compumart` |
+| EPP-0245 | PT RAKA PERKASA TEKNOLOGI | Yogyakarta | `rakaperkasa` | `rakaperkasa@epp26.id` | `Epp2026!RakaPerkasa` |
+
+> 💡 **Fitur Ganti Password**: Semua pengguna dapat mengganti password mandiri kapan saja melalui tombol **"Ganti Password"** di sudut kanan atas dashboard masing-masing.
 
 ---
 
@@ -154,6 +156,12 @@ Login  ──► Sistem deteksi peran otomatis
 
    notify pgrst, 'reload schema';
    ```
+
+#### 💡 Troubleshooting Umum Supabase
+
+- **`Database error querying schema`**: Disebabkan token NULL pada tabel `auth.users`. Jalankan query langkah 4 di atas untuk mengisi nilai default string kosong `''`.
+- **`null value in column provider_id`**: Pada Supabase GoTrue versi terbaru, pastikan `provider_id` pada `auth.identities` diisi dengan email/string (sudah ditangani otomatis di file `seed_*.sql`).
+- **"Akun ini belum terhubung dengan data toko"**: Dashboard memiliki mekanisme auto-link otomatis saat login pertama berdasarkan kecocokan username. Jika masih muncul, jalankan query langkah 5 di atas.
 
 ---
 
