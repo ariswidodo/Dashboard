@@ -503,7 +503,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           <span>Paketan Berjalan (Booster Up)</span>
         </button>
 
-        {(!isEprUser || isAdmin) && (
+        {isAdmin && (
           <button 
             type="button" 
             onClick={() => setActivePage('audit')}
@@ -1129,34 +1129,137 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                         <thead>
                           <tr>
                             <th>No</th>
-                            <th>Kode EPR</th>
-                            <th>Nama Toko</th>
-                            <th>Kota</th>
-                            <th>Paket</th>
-                            <th>Tier</th>
-                            <th>AM</th>
-                            <th className="num">Reward</th>
-                            <th>Status</th>
+                            <th>Toko Retail</th>
+                            <th>Paket &amp; Target</th>
+                            <th className="num">Okt 2026</th>
+                            <th className="num">Nov 2026</th>
+                            <th className="num">Des 2026</th>
+                            <th className="num">Sudah Beli</th>
+                            <th className="num">Kurang (Gap)</th>
+                            <th>Status &amp; Reward</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {progList.map((prog, idx) => (
-                            <tr key={prog.code || idx}>
-                              <td className="mono text-slate-400 text-xs">{idx + 1}</td>
-                              <td><span className="badge badge-indigo mono">{prog.code}</span></td>
-                              <td className="font-bold text-slate-900">{prog.name}</td>
-                              <td className="text-xs text-slate-500">{prog.city}</td>
-                              <td><span className="badge badge-sky">{prog.package_type || 'Consumer'}</span></td>
-                              <td><span className={`badge tier-${prog.tier?.toLowerCase()}`}>{prog.tier}</span></td>
-                              <td className="text-xs">{prog.am}</td>
-                              <td className="num mono font-bold text-emerald-600">
-                                {prog.reward ? fmtRp(prog.reward) : 'Rp 3.900.000'}
-                              </td>
-                              <td>
-                                <span className="badge badge-emerald">Aktif Berjalan</span>
-                              </td>
-                            </tr>
-                          ))}
+                          {progList.map((prog: any, idx) => {
+                            const sm = prog.summary || {};
+                            const lines = sm.lines || [];
+                            const monthly = prog.monthly || {};
+                            const mOct = monthly['2026-10']?.qty || 0;
+                            const mNov = monthly['2026-11']?.qty || 0;
+                            const mDes = monthly['2026-12']?.qty || 0;
+                            const isAch = sm.achieved;
+                            const unitLbl = prog.scheme === 'consumables' ? 'pcs' : 'unit/pcs';
+
+                            return (
+                              <tr key={prog.code || idx}>
+                                <td className="mono text-slate-400 text-xs">{idx + 1}</td>
+                                <td>
+                                  <div>
+                                    <div className="font-bold text-slate-900">{prog.name}</div>
+                                    <div className="text-2xs text-slate-500 mono">
+                                      {prog.code} · {prog.city || '-'} · AE: {prog.am}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <div>
+                                    <span className="badge badge-sky text-2xs mb-1 inline-block">
+                                      {prog.pack_name || prog.package_type}
+                                    </span>
+                                    <div className="text-2xs text-slate-500 font-mono">
+                                      Target: <strong className="text-slate-800">{sm.total_target?.toLocaleString('id-ID') || '-'}</strong> {unitLbl}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Bulan 1: Oktober 2026 */}
+                                <td className="num mono">
+                                  <span className={`font-semibold ${mOct > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                    {mOct > 0 ? `${mOct.toLocaleString('id-ID')}` : '-'}
+                                  </span>
+                                </td>
+
+                                {/* Bulan 2: November 2026 */}
+                                <td className="num mono">
+                                  <span className={`font-semibold ${mNov > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                    {mNov > 0 ? `${mNov.toLocaleString('id-ID')}` : '-'}
+                                  </span>
+                                </td>
+
+                                {/* Bulan 3: Desember 2026 */}
+                                <td className="num mono">
+                                  <span className={`font-semibold ${mDes > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                    {mDes > 0 ? `${mDes.toLocaleString('id-ID')}` : '-'}
+                                  </span>
+                                </td>
+
+                                {/* Total Sudah Beli */}
+                                <td className="num mono">
+                                  <div>
+                                    <strong className="text-slate-900 text-sm">
+                                      {(sm.total_actual || 0).toLocaleString('id-ID')}
+                                    </strong>
+                                    <span className="text-2xs text-slate-400 block">{unitLbl}</span>
+                                    {lines.length > 0 && (
+                                      <div className="text-2xs text-slate-500 mt-0.5 space-y-0.5 text-right">
+                                        {lines.map((l: any) => (
+                                          <div key={l.key} className="whitespace-nowrap">
+                                            <span>{l.label}: </span>
+                                            <b className="text-slate-700">{l.actual.toLocaleString('id-ID')}</b>
+                                            <span className="text-slate-400">/{l.target.toLocaleString('id-ID')}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Kurang Berapa (Gap) */}
+                                <td className="num mono">
+                                  {isAch ? (
+                                    <span className="text-emerald-600 font-bold text-xs">
+                                      ✓ Terpenuhi
+                                    </span>
+                                  ) : (
+                                    <div>
+                                      <strong className="text-rose-600 text-sm">
+                                        Kurang {(sm.total_gap || 0).toLocaleString('id-ID')}
+                                      </strong>
+                                      <span className="text-2xs text-slate-400 block">{unitLbl}</span>
+                                      {lines.length > 0 && (
+                                        <div className="text-2xs mt-0.5 space-y-0.5 text-right">
+                                          {lines.map((l: any) => (
+                                            <div key={l.key} className="whitespace-nowrap">
+                                              <span>{l.label}: </span>
+                                              {l.gap === 0 ? (
+                                                <span className="text-emerald-600 font-bold">✓ Ok</span>
+                                              ) : (
+                                                <span className="text-rose-500 font-medium">-{l.gap.toLocaleString('id-ID')}</span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+
+                                {/* Status & Reward */}
+                                <td>
+                                  <div>
+                                    {isAch ? (
+                                      <span className="badge badge-emerald">Achieved</span>
+                                    ) : (
+                                      <span className="badge badge-amber">Berjalan</span>
+                                    )}
+                                    <div className="text-xs font-bold text-emerald-600 mono mt-1">
+                                      {fmtRp(prog.reward || 3900000)}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1167,9 +1270,9 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           )}
 
           {/* ======================================================== */}
-          {/* PAGE 3: KONTRIBUSI EPP & AUDIT */}
+          {/* PAGE 3: KONTRIBUSI EPP & AUDIT (KHUSUS ADMIN) */}
           {/* ======================================================== */}
-          {activePage === 'audit' && (
+          {activePage === 'audit' && isAdmin && (
             <div className="space-y-6">
               <div className="card">
                 <div className="card-head">
