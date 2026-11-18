@@ -249,14 +249,15 @@ epr-dashboard/
 
 ---
 
-## Keamanan (Row-Level Security)
+## Keamanan & Hak Akses (Strict Read-Only untuk Partner)
 
-Seluruh keamanan data dikunci langsung di tingkat database PostgreSQL Supabase:
+Seluruh hak akses dikunci langsung di tingkat database PostgreSQL Supabase via **Row-Level Security (RLS)**:
 
-- **Toko EPR**: Hanya bisa membaca & menulis data tokonya sendiri (`auth.uid() = user_id`)
-- **EPP**: Bisa membaca performa seluruh toko EPR, **tidak** menampilkan identitas EPP pemasok lain
-- **Admin**: Akses penuh ke semua tabel EPR dan EPP
-- **Tanpa RLS bypass**: Sekalipun seseorang mengutak-atik kode browser, database PostgreSQL tetap menolak
+- **Toko EPR (Retail)**: **READ-ONLY (Hanya Baca)**. Hanya bisa melihat target dan realisasi pembelian tokonya sendiri. **Tidak bisa mengedit atau menginput data**.
+- **EPP (Partner Premier)**: **READ-ONLY (Hanya Baca)**. Hanya bisa melihat monitoring performa toko retail secara netral. **Tidak bisa mengedit atau menginput data**.
+- **Admin (`admin@epr26.id`)**: **FULL ACCESS (Read & Write)**. Satu-satunya akun yang berhak menambah, mengedit, atau menghapus data master dan realisasi.
+- **Ganti Password**: Tetap dapat dilakukan mandiri oleh masing-masing pengguna untuk akun login pribadinya.
+- **Tanpa RLS bypass**: Sekalipun seseorang memodifikasi kode frontend di browser, database PostgreSQL Supabase secara mutlak menolak operasi `INSERT`, `UPDATE`, atau `DELETE` dari akun selain Admin.
 
 ---
 

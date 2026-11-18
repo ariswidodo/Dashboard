@@ -12,10 +12,8 @@ import {
   TrendingUp, 
   Calendar, 
   CheckCircle, 
-  PlusCircle,
-  Save,
-  Loader2,
-  PieChart,
+  Loader2, 
+  PieChart, 
   DollarSign
 } from 'lucide-react';
 
@@ -45,9 +43,6 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
   const [sales, setSales] = useState<SalesRecord[]>([]);
   const [loading, setLoading] = useState(!previewStore);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [editingMonth, setEditingMonth] = useState<number | null>(null);
-  const [inputAchievement, setInputAchievement] = useState<string>('');
-  const [savingSales, setSavingSales] = useState(false);
 
   useEffect(() => {
     if (previewStore) {
@@ -112,38 +107,6 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
       console.error('Error fetching store data:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSaveAchievement = async (month: number) => {
-    if (!store) return;
-    setSavingSales(true);
-    const amount = parseFloat(inputAchievement) || 0;
-
-    try {
-      const { error } = await supabase.from('sales_records').upsert({
-        store_id: store.id,
-        month,
-        year: 2026,
-        achievement_amount: amount,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'store_id,month,year' });
-
-      if (!error) {
-        setEditingMonth(null);
-        setInputAchievement('');
-        // Refresh sales
-        const { data: salesData } = await supabase
-          .from('sales_records')
-          .select('*')
-          .eq('store_id', store.id)
-          .order('month', { ascending: true });
-        setSales(salesData || []);
-      }
-    } catch (err) {
-      console.error('Failed to save sales:', err);
-    } finally {
-      setSavingSales(false);
     }
   };
 
@@ -419,7 +382,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
             <div>
               <h3 className="text-lg font-bold text-slate-900">Tracking Realisasi Penjualan Bulanan</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Input dan pantau pencapaian aktual toko Anda setiap bulan
+                Pantau realisasi pembelian terverifikasi toko Anda setiap bulan
               </p>
             </div>
           </div>
@@ -432,7 +395,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                   <th className="py-3.5 px-6">Target Bulanan</th>
                   <th className="py-3.5 px-6">Realisasi Aktual</th>
                   <th className="py-3.5 px-6">% Pencapaian</th>
-                  <th className="py-3.5 px-6 text-right">Aksi</th>
+                  <th className="py-3.5 px-6 text-right">Status Capaian</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -442,8 +405,6 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                   const actual = record?.achievement_amount || 0;
                   const monthlyTarget = store.target_monthly || 1;
                   const percent = Math.round((actual / monthlyTarget) * 100);
-
-                  const isEditing = editingMonth === monthNum;
 
                   return (
                     <tr key={monthNum} className="hover:bg-slate-50/60 transition">
@@ -459,22 +420,9 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                         {formatRupiah(store.target_monthly)}
                       </td>
                       <td className="py-4 px-6">
-                        {isEditing ? (
-                          <div className="flex items-center gap-2 max-w-[200px]">
-                            <input
-                              type="number"
-                              value={inputAchievement}
-                              onChange={(e) => setInputAchievement(e.target.value)}
-                              placeholder="Nominal Rp"
-                              className="w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              autoFocus
-                            />
-                          </div>
-                        ) : (
-                          <span className={actual > 0 ? 'font-semibold text-slate-900' : 'text-slate-400'}>
-                            {actual > 0 ? formatRupiah(actual) : 'Belum diisi'}
-                          </span>
-                        )}
+                        <span className={actual > 0 ? 'font-semibold text-slate-900' : 'text-slate-400'}>
+                          {actual > 0 ? formatRupiah(actual) : 'Belum ada data'}
+                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-2">
@@ -484,32 +432,20 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                         </div>
                       </td>
                       <td className="py-4 px-6 text-right">
-                        {isEditing ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setEditingMonth(null)}
-                              className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700"
-                            >
-                              Batal
-                            </button>
-                            <button
-                              onClick={() => handleSaveAchievement(monthNum)}
-                              disabled={savingSales}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition disabled:opacity-50"
-                            >
-                              {savingSales ? '...' : 'Simpan'}
-                            </button>
-                          </div>
+                        {actual >= monthlyTarget ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-2xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle className="w-3 h-3" />
+                            Tercapai
+                          </span>
+                        ) : actual > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-2xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <TrendingUp className="w-3 h-3" />
+                            {percent}%
+                          </span>
                         ) : (
-                          <button
-                            onClick={() => {
-                              setEditingMonth(monthNum);
-                              setInputAchievement(actual ? actual.toString() : '');
-                            }}
-                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
-                          >
-                            {actual > 0 ? 'Edit' : '+ Input'}
-                          </button>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-2xs font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                            Belum Ada Data
+                          </span>
                         )}
                       </td>
                     </tr>
