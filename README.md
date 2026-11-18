@@ -1,32 +1,44 @@
-# Portal Partner EPR & EPP FY26 — Dashboard Toko
+# EPR Achievement Dashboard FY26
 
-Website dashboard multi-tenant untuk monitoring target penjualan dan realisasi bulanan seluruh partner retail (EPR) dan partner premier (EPP) FY26, dibangun dengan **React + Vite + Tailwind CSS**, backend **Supabase PostgreSQL + RLS**, dan hosting gratis di **Cloudflare Pages**.
+> **Portal monitoring multi-tenant** pencapaian target penjualan seluruh toko retail Epson Partner Retail (EPR) dan Partner Premier (EPP) FY26 — tampilan Power BI Analytics, role-based access, strict read-only untuk partner.
+
+---
+
+## Demo & Referensi Data
+
+| | URL |
+|---|---|
+| **Referensi dashboard** | [ariswidodo.github.io/EPR](https://ariswidodo.github.io/EPR/) |
+| **Data sumber** | GitHub repo `ariswidodo/EPR` → `epr_data.json` |
+| **Supabase project** | `nhuaoaujwfnpymhfgnbf.supabase.co` |
 
 ---
 
 ## Arsitektur Sistem
 
 ```
-Login  ──► Sistem deteksi peran otomatis
-              │
-              ├─► ADMIN  (admin@epr26.id)
-              │     • Tab EPR: Lihat & inspeksi 24 toko retail
-              │     • Tab EPP: Lihat 127 master data EPP nasional
-              │     • Klik "Lihat Detail" untuk inspeksi tiap toko
-              │
-              ├─► EPP (computa, compumart, dst...)
-              │     • Profil identitas EPP sendiri
-              │     • Monitoring performa pembelian 24 toko retail (EPR)
-              │     • TIDAK menampilkan identitas EPP pemasok lainnya
-              │     • Filter per kota, kategori, search nama toko
-              │     • Modal detail pembelian bulanan per toko EPR
-              │
-              └─► EPR (sinarjaya, harrisma, dst...)
-                    • Dashboard target & profil toko sendiri
-                    • Kartu metrik: Target FY26, H1/H2, Bulanan
-                    • Input & tracking realisasi penjualan per bulan
-                    • Progress bar pencapaian (% Achievement)
-                    • Ganti password mandiri
+Login  ──► Deteksi peran otomatis (Supabase Auth)
+               │
+               ├─► ADMIN  (admin@epr26.id)
+               │     • Tab 1 – Overview & Target H2: lihat & filter 24 toko EPR
+               │     • Tab 2 – Paketan Berjalan: 62 peserta Booster Up (semua AM)
+               │     • Tab 3 – Kontribusi EPP & Audit: semua 19 EPP lengkap
+               │     • Drawer detail per toko (termasuk sumber EPP)
+               │
+               ├─► EPP  (computa, topdistribusi, compumart, rakaperkasa)
+               │     • Tab 1 – Overview: monitoring 24 toko EPR (read-only)
+               │     • Tab 2 – Paketan Berjalan: lihat program Booster Up
+               │     • Tab 3 – Kontribusi EPP: baris MILIK SENDIRI penuh +
+               │               baris EPP lain dianonimkan "EPP Lain #N"
+               │     • Domain login: username@epp26.id
+               │
+               └─► EPR  (sinarjaya, harrisma, dst…)
+                     • Tab 1 – Overview: hanya data TOKO SENDIRI
+                     • Tab 2 – Paketan Berjalan: pesan "tidak terdaftar"
+                               jika toko tidak ikut program (area AM ARIS)
+                     • Tab 3 – tersembunyi
+                     • Subtitle topbar menampilkan nama toko yang tepat
+                     • Domain login: username@epr26.id
 ```
 
 ---
@@ -36,140 +48,168 @@ Login  ──► Sistem deteksi peran otomatis
 | Layer | Teknologi |
 |---|---|
 | Frontend | React 18 + TypeScript + Vite 8 |
-| Styling | Tailwind CSS v4 |
+| Styling | Tailwind CSS v4 + Custom PBI CSS (`styles-pbi.css`) |
 | Icons | Lucide React |
 | Backend / Auth | Supabase (PostgreSQL + GoTrue Auth) |
 | Keamanan Data | Row-Level Security (RLS) PostgreSQL |
+| Data Pembelian | `public/data/epr_data.json` (dari repo `ariswidodo/EPR`) |
 | Hosting | Cloudflare Pages (Free Tier) |
-| Repositori | GitHub |
 
 ---
 
-## Data Master
+## Struktur File Proyek
 
-| Program | Jumlah | Wilayah | File Excel Sumber |
-|---|---|---|---|
-| **EPR** (Retail) | 24 Toko | Jawa Tengah (AM: ARIS) | `EPR FY26.xlsx` |
-| **EPP** (Partner Premier) | 127 Toko | Seluruh Indonesia | `EPP FY26.xlsx` |
-
-### Kategori Tier EPR
-
-| Tier | Warna | Category Target |
-|---|---|---|
-| ☀️ SUN | Amber | Rp 6.000.000.000 |
-| ⭐ STAR | Purple | Rp 4.000.000.000 |
-| 🌙 MOON | Sky Blue | Rp 1.500.000.000 |
-| 🌍 EARTH | Emerald | Rp 2.500.000.000 |
-| 🌙 CRESCENT | Slate | Rp 200.000.000 |
+```
+epr-dashboard/
+├── .env                              ← Kredensial Supabase (git-ignored)
+├── .env.example                      ← Template variabel environment
+├── index.html
+├── vite.config.ts
+├── tsconfig.json / package.json
+│
+│── SQL Scripts (jalankan berurutan di Supabase SQL Editor):
+├── supabase_setup.sql                ← [1] Tabel EPR, RLS, trigger, 24 data toko
+├── seed_users.sql                    ← [2] 24 akun login EPR
+├── setup_epp.sql                     ← [3] Tabel EPP + 127 data EPP nasional
+├── seed_epp_local.sql                ← [4] Akun Admin + 4 EPP lokal Jawa Tengah
+├── update_epr_credentials.sql        ← [5] Update username & password 24 EPR
+├── import_pembelian_sales.sql        ← [6] Import 288 catatan pembelian bulanan
+├── lockdown_readonly_rls.sql         ← [7] Kunci strict READ-ONLY EPR & EPP
+├── patch_user_metadata.sql           ← [8] Patch epr_code ke JWT user_metadata
+│
+├── public/
+│   └── data/
+│       ├── epr_data.json             ← Data utama: 24 toko, 12 bulan, semua kategori
+│       ├── program_rules.json        ← Skema reward Booster Up
+│       └── peserta_booster.csv       ← Daftar peserta program
+│
+└── src/
+    ├── main.tsx
+    ├── App.tsx                       ← Auth session, deteksi role, pass userEprCode
+    ├── index.css                     ← Import Tailwind + styles-pbi.css
+    ├── styles-pbi.css                ← CSS Power BI custom (dari ariswidodo/EPR)
+    ├── types-pbi.ts                  ← TypeScript interfaces (PartnerData, EprFullData…)
+    ├── vite-env.d.ts
+    ├── lib/
+    │   └── supabase.ts               ← Supabase client + guard isSupabaseConfigured
+    └── components/
+        ├── Login.tsx                 ← Login (multi-domain: @epr26.id → @epp26.id)
+        ├── ModernEprDashboard.tsx    ← Dashboard utama (1 file, 3 tab, semua role)
+        └── ChangePasswordModal.tsx   ← Modal ganti password mandiri
+```
 
 ---
 
 ## Akun Default
 
 ### Admin
-| Username | Domain Internal | Password Default | Akses |
-|---|---|---|---|
-| `admin` | `admin@epr26.id` | `AdminEpr2026!` | Seluruh data EPR + EPP (Full Access) |
 
-### EPR — Toko Retail (24 Akun)
-> Pengguna dapat login menggunakan **Username** saja (sistem otomatis mengarahkan ke akun yang tepat) atau menggunakan **Email Akun**.
-
-| Kode | Nama Toko | Username | Email Akun | Password Default |
-|---|---|---|---|---|
-| EPR-0038 | SINAR JAYA COMPUTER / CV PINDITECH MAJU ABADI | `sinarjaya` | `sinarjaya@epr26.id` | `Epr2026!SinarJaya` |
-| EPR-0054 | PT HETERO NIAGA GLOBAL | `hetero` | `heteroniaga@epr26.id` | `Epr2026!HeteroNiaga` |
-| EPR-0267 | PT HARRISMA PRATAMAJAYA | `harrisma` | `harrisma@epr26.id` | `Epr2026!Harrisma` |
-| EPR-0650 | CV RAJA PRINT SOLUTION | `rajaink` | `rajaprint@epr26.id` | `Epr2026!RajaPrint` |
-| EPR-0733 | MICRO PRINTER | `micro` | `microprinter@epr26.id` | `Epr2026!MicroPrinter` |
-| EPR-0881 | UD PIXEL | `pixel` | `pixel@epr26.id` | `Epr2026!PixelSemarang` |
-| EPR-1002 | AL BUMI IT STORE | `albumi` | `albumi@epr26.id` | `Epr2026!AlBumi` |
-| EPR-1005 | CV PRIBUMI JAYA KOMPUTAMA | `kodoescom` | `pribumijaya@epr26.id` | `Epr2026!PribumiJaya` |
-| EPR-1197 | CV YESTOYA ABADI | `yestoya` | `yestoya@epr26.id` | `Epr2026!YestoyaAbadi` |
-| EPR-1409 | PRIMA KOMPUTER | `primakom` | `primakomputer@epr26.id` | `Epr2026!PrimaKomputer` |
-| EPR-1410 | CV SAFRINDO PERKASA | `safrindo` | `safrindo@epr26.id` | `Epr2026!Safrindo` |
-| EPR-1413 | PT INFOKOM PUTRA KENCANA | `ipk` | `infokom@epr26.id` | `Epr2026!InfokomPutra` |
-| EPR-1570 | CV MITRA PRATAMA KOMPUTINDO | `sedardigital` | `mitrapratama@epr26.id` | `Epr2026!MitraPratama` |
-| EPR-1628 | CV ARTADINATA PERKASA ABADI | `artadinata` | `artadinata@epr26.id` | `Epr2026!Artadinata` |
-| EPR-1768 | CV KARYA HIDUP MULYA | `khm` | `karyahidupmulya@epr26.id` | `Epr2026!KaryaHidupMulya` |
-| EPR-1770 | CV PUTRA MANDIRI | `putramandiri` | `putramandiri@epr26.id` | `Epr2026!PutraMandiri` |
-| EPR-1816 | CV SALAM JAYA KOMPUTINDO | `ungu` | `salamjaya@epr26.id` | `Epr2026!SalamJaya` |
-| EPR-1845 | CV Bumi Raya Indonesia | `bumiraya` | `bumiraya@epr26.id` | `Epr2026!BumiRaya` |
-| EPR-1906 | ELLITE COMPUTER WELERI | `ellite` | `ellite@epr26.id` | `Epr2026!ElliteWeleri` |
-| EPR-1907 | PT HAIGA CITRA DIGITAL | `haiga` | `haiga@epr26.id` | `Epr2026!HaigaCitra` |
-| EPR-1966 | CV MITRA SARANA TEKNIK | `afa` | `mitrasarana@epr26.id` | `Epr2026!MitraSarana` |
-| EPR-1967 | CV DIAMOND INDO | `diamondindo` | `diamondindo@epr26.id` | `Epr2026!DiamondIndo` |
-| EPR-1999 | CV NAFIRI | `nafiri` | `nafiri@epr26.id` | `Epr2026!NafiriSemarang` |
-| EPR-2013 | CV JAYA MAKMUR STATIONARY | `jayamakmur` | `jayamakmur@epr26.id` | `Epr2026!JayaMakmur` |
-
-### EPP — Partner Premier Aktif (4 Akun Lokal Jawa Tengah)
-> Username cukup diinput namanya saja. Sistem otomatis mencoba domain `@epr26.id` lalu fallback ke `@epp26.id`. Pengguna juga bisa memasukkan email lengkap.
-
-| Kode | Nama EPP | Kota | Username | Domain Internal | Password Default |
-|---|---|---|---|---|---|
-| EPP-0050 | COMPUTA | Yogyakarta | `computa` | `computa@epp26.id` | `Epp2026!Computa` |
-| EPP-0055 | TOP DISTRIBUSI | Yogyakarta | `topdistribusi` | `topdistribusi@epp26.id` | `Epp2026!TopDistribusi` |
-| EPP-0056 | COMPUMART | Semarang | `compumart` | `compumart@epp26.id` | `Epp2026!Compumart` |
-| EPP-0245 | PT RAKA PERKASA TEKNOLOGI | Yogyakarta | `rakaperkasa` | `rakaperkasa@epp26.id` | `Epp2026!RakaPerkasa` |
-
-> 💡 **Fitur Ganti Password**: Semua pengguna dapat mengganti password mandiri kapan saja melalui tombol **"Ganti Password"** di sudut kanan atas dashboard masing-masing.
+| Email | Password | Akses |
+|---|---|---|
+| `admin@epr26.id` | `AdminEpr2026!` | Full access — semua data EPR + EPP |
 
 ---
 
-## Setup Lengkap (Langkah Demi Langkah)
+### EPR — Toko Retail (24 Akun)
+
+> Login menggunakan **Email** (`username@epr26.id`) dan password di bawah.
+
+| Kode | Nama Toko | Username / Email | Password Default |
+|---|---|---|---|
+| EPR-0038 | SINAR JAYA COMPUTER | `sinarjaya@epr26.id` | `Epr2026!SinarJaya` |
+| EPR-0054 | PT HETERO NIAGA GLOBAL | `heteroniaga@epr26.id` | `Epr2026!HeteroNiaga` |
+| EPR-0267 | PT HARRISMA PRATAMAJAYA | `harrisma@epr26.id` | `Epr2026!Harrisma` |
+| EPR-0650 | CV RAJA PRINT SOLUTION | `rajaprint@epr26.id` | `Epr2026!RajaPrint` |
+| EPR-0733 | MICRO PRINTER | `microprinter@epr26.id` | `Epr2026!MicroPrinter` |
+| EPR-0881 | UD PIXEL | `pixel@epr26.id` | `Epr2026!PixelSemarang` |
+| EPR-1002 | AL BUMI IT STORE | `albumi@epr26.id` | `Epr2026!AlBumi` |
+| EPR-1005 | CV PRIBUMI JAYA KOMPUTAMA | `pribumijaya@epr26.id` | `Epr2026!PribumiJaya` |
+| EPR-1197 | CV YESTOYA ABADI | `yestoya@epr26.id` | `Epr2026!YestoyaAbadi` |
+| EPR-1409 | PRIMA KOMPUTER | `primakomputer@epr26.id` | `Epr2026!PrimaKomputer` |
+| EPR-1410 | CV SAFRINDO PERKASA | `safrindo@epr26.id` | `Epr2026!Safrindo` |
+| EPR-1413 | PT INFOKOM PUTRA KENCANA | `infokom@epr26.id` | `Epr2026!InfokomPutra` |
+| EPR-1570 | CV MITRA PRATAMA KOMPUTINDO | `mitrapratama@epr26.id` | `Epr2026!MitraPratama` |
+| EPR-1628 | CV ARTADINATA PERKASA ABADI | `artadinata@epr26.id` | `Epr2026!Artadinata` |
+| EPR-1768 | CV KARYA HIDUP MULYA | `karyahidupmulya@epr26.id` | `Epr2026!KaryaHidupMulya` |
+| EPR-1770 | CV PUTRA MANDIRI | `putramandiri@epr26.id` | `Epr2026!PutraMandiri` |
+| EPR-1816 | CV SALAM JAYA KOMPUTINDO | `salamjaya@epr26.id` | `Epr2026!SalamJaya` |
+| EPR-1845 | CV BUMI RAYA INDONESIA | `bumiraya@epr26.id` | `Epr2026!BumiRaya` |
+| EPR-1906 | ELLITE COMPUTER WELERI | `ellite@epr26.id` | `Epr2026!ElliteWeleri` |
+| EPR-1907 | PT HAIGA CITRA DIGITAL | `haiga@epr26.id` | `Epr2026!HaigaCitra` |
+| EPR-1966 | CV MITRA SARANA TEKNIK | `mitrasarana@epr26.id` | `Epr2026!MitraSarana` |
+| EPR-1967 | CV DIAMOND INDO | `diamondindo@epr26.id` | `Epr2026!DiamondIndo` |
+| EPR-1999 | CV NAFIRI | `nafiri@epr26.id` | `Epr2026!NafiriSemarang` |
+| EPR-2013 | CV JAYA MAKMUR STATIONARY | `jayamakmur@epr26.id` | `Epr2026!JayaMakmur` |
+
+---
+
+### EPP — Partner Premier Aktif (4 Akun Lokal Jawa Tengah)
+
+> Login menggunakan **Email** (`username@epp26.id`).
+
+| Kode | Nama EPP | Kota | Email | Password Default |
+|---|---|---|---|---|
+| EPP-0050 | CV COMPUTA | Yogyakarta | `computa@epp26.id` | `Epp2026!Computa` |
+| EPP-0055 | CV TOP DISTRIBUSI | Yogyakarta | `topdistribusi@epp26.id` | `Epp2026!TopDistribusi` |
+| EPP-0056 | PT COMPUTEK INFOMART INDONESIA | Semarang | `compumart@epp26.id` | `Epp2026!Compumart` |
+| EPP-0245 | PT RAKA PERKASA TEKNOLOGI | Yogyakarta | `rakaperkasa@epp26.id` | `Epp2026!RakaPerkasa` |
+
+> 💡 Semua pengguna dapat mengganti password mandiri via tombol **"Ganti Password"** di pojok kanan atas dashboard.
+
+---
+
+## Setup Lengkap
 
 ### Langkah 1 — Setup Supabase
 
-1. Buka [Supabase Dashboard](https://supabase.com/dashboard) dan pilih project Anda.
-2. Buka **Authentication → Providers → Email** → **Nonaktifkan "Confirm email"**.
-3. Buka **SQL Editor**, jalankan file berikut **secara berurutan**:
+1. Buka [Supabase Dashboard](https://supabase.com/dashboard) → pilih project Anda.
+2. **Authentication → Providers → Email** → nonaktifkan **"Confirm email"**.
+3. Buka **SQL Editor**, jalankan file SQL **secara berurutan**:
 
-   | Urutan | File | Fungsi |
+   | # | File | Fungsi |
    |---|---|---|
-   | 1 | `supabase_setup.sql` | Buat tabel EPR, RLS, trigger, insert 24 data toko EPR |
+   | 1 | `supabase_setup.sql` | Buat tabel `epr_stores`, RLS, trigger, insert 24 data toko |
    | 2 | `seed_users.sql` | Buat 24 akun login EPR + perbaikan token NULL |
-   | 3 | `setup_epp.sql` | Buat tabel EPP, RLS, insert 127 data EPP |
-   | 4 | `seed_epp_local.sql` | Buat akun Admin + 4 akun EPP lokal Jawa Tengah |
+   | 3 | `setup_epp.sql` | Buat tabel `epp_stores`, RLS, insert 127 data EPP nasional |
+   | 4 | `seed_epp_local.sql` | Akun Admin + 4 akun EPP lokal Jawa Tengah |
    | 5 | `update_epr_credentials.sql` | Update username & password 24 toko EPR |
-   | 6 | `import_pembelian_sales.sql` | Import data realisasi pembelian dari repo GitHub EPR (288 catatan bulanan) |
+   | 6 | `import_pembelian_sales.sql` | Import 288 catatan pembelian bulanan ke `sales_records` |
+   | 7 | `lockdown_readonly_rls.sql` | Kunci strict READ-ONLY EPR & EPP di level database |
+   | 8 | `patch_user_metadata.sql` | Set `epr_code` ke `raw_user_meta_data` JWT semua akun EPR |
 
-4. Jalankan query perbaikan token (jika muncul error `Database error querying schema`):
+4. *(Opsional — jika muncul error `Database error querying schema`)*:
    ```sql
-   update auth.users
-   set
-     confirmation_token = coalesce(confirmation_token, ''),
-     recovery_token = coalesce(recovery_token, ''),
-     email_change = coalesce(email_change, ''),
+   update auth.users set
+     confirmation_token    = coalesce(confirmation_token, ''),
+     recovery_token        = coalesce(recovery_token, ''),
+     email_change          = coalesce(email_change, ''),
      email_change_token_new = coalesce(email_change_token_new, '');
    notify pgrst, 'reload schema';
    ```
 
-5. Jalankan query untuk grant akses & tautkan akun ke data toko:
+5. Hubungkan `user_id` ke tabel `epr_stores` jika belum:
    ```sql
-   grant usage on schema public to anon, authenticated;
-   grant all on table public.epr_stores to anon, authenticated;
-   grant all on table public.sales_records to anon, authenticated;
-   grant all on table public.epp_stores to anon, authenticated;
-   grant all on all sequences in schema public to anon, authenticated;
-
    update public.epr_stores s
    set user_id = u.id
    from auth.users u
    where lower(split_part(u.email, '@', 1)) = lower(s.username);
-
    notify pgrst, 'reload schema';
    ```
 
-#### 💡 Troubleshooting Umum Supabase
+#### Troubleshooting Umum Supabase
 
-- **`Database error querying schema`**: Disebabkan token NULL pada tabel `auth.users`. Jalankan query langkah 4 di atas untuk mengisi nilai default string kosong `''`.
-- **`null value in column provider_id`**: Pada Supabase GoTrue versi terbaru, pastikan `provider_id` pada `auth.identities` diisi dengan email/string (sudah ditangani otomatis di file `seed_*.sql`).
-- **"Akun ini belum terhubung dengan data toko"**: Dashboard memiliki mekanisme auto-link otomatis saat login pertama berdasarkan kecocokan username. Jika masih muncul, jalankan query langkah 5 di atas.
+| Error | Penyebab | Solusi |
+|---|---|---|
+| `Database error querying schema` | Token NULL di `auth.users` | Jalankan query langkah 4 |
+| `null value in column provider_id` | GoTrue versi baru wajib `provider_id` | Sudah ditangani di `seed_*.sql` |
+| Subtitle toko salah setelah login | `epr_code` belum di JWT | Jalankan `patch_user_metadata.sql`, lalu logout & login ulang |
+| "Akun belum terhubung data toko" | `user_id` di `epr_stores` kosong | Jalankan query langkah 5 |
 
 ---
 
 ### Langkah 2 — Konfigurasi Environment
 
-Salin `.env.example` menjadi `.env` lalu isi dengan kredensial dari **Supabase → Project Settings → API**:
+Salin `.env.example` → `.env`, isi dengan nilai dari **Supabase → Project Settings → API**:
 
 ```env
 VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
@@ -183,9 +223,8 @@ VITE_SUPABASE_ANON_KEY=eyJhbg...
 ```powershell
 npm install
 npm run dev
+# Buka http://localhost:5173
 ```
-
-Buka browser di **`http://localhost:5173`** dan login dengan salah satu akun di atas.
 
 ---
 
@@ -207,65 +246,60 @@ git push -u origin main
    - **Framework**: `Vite`
    - **Build command**: `npm run build`
    - **Output directory**: `dist`
-4. Tambahkan **Environment Variables**:
+4. Tambahkan **Environment Variables** di Settings:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-5. Klik **Save and Deploy** → website aktif di `https://epr-dashboard.pages.dev`
+5. **Save and Deploy** → aktif di `https://epr-dashboard.pages.dev`
 
 ---
 
-## Struktur File Proyek
+## Keamanan & Hak Akses
+
+Semua hak akses dikunci di tingkat database PostgreSQL via **Row-Level Security (RLS)**.
+
+| Role | Hak Akses | Catatan |
+|---|---|---|
+| **Admin** | Full Read & Write | Satu-satunya yang bisa edit data master & realisasi |
+| **EPP** | Read-Only | Lihat monitoring 24 EPR; identitas EPP kompetitor **dirahasiakan** |
+| **EPR** | Strict Read-Only | Hanya data toko sendiri; tidak ada form input/edit |
+| **Semua** | Ganti password | Hanya untuk akun login pribadi masing-masing |
+
+> Sekalipun seseorang memodifikasi kode frontend di browser, database PostgreSQL Supabase secara mutlak menolak `INSERT`, `UPDATE`, atau `DELETE` dari akun selain Admin.
+
+---
+
+## Hak Akses Per Tab Dashboard
+
+| Tab | Admin | EPP | EPR |
+|---|---|---|---|
+| Overview & Target H2 | ✅ Semua 24 toko + filter | ✅ Semua 24 toko + filter | ✅ Hanya toko sendiri |
+| Paketan Berjalan | ✅ 62 peserta (semua AM) | ✅ 62 peserta (semua AM) | ⚠️ Pesan "tidak terdaftar" (AM ARIS tidak ikut Booster Up) |
+| Kontribusi EPP & Audit | ✅ 19 EPP lengkap | ✅ Baris sendiri penuh + EPP lain dianonimkan | ❌ Tab tidak muncul |
+
+---
+
+## Data Pembelian
+
+Data utama dashboard dibaca dari file statis:
 
 ```
-epr-dashboard/
-├── .env.example                  ← Template variabel environment
-├── .gitignore                    ← .env dikecualikan dari git
-├── index.html
-├── vite.config.ts
-├── tsconfig.json
-├── package.json
-│
-├── supabase_setup.sql            ← [1] Setup tabel EPR + 24 data toko
-├── seed_users.sql                ← [2] Buat 24 akun login EPR
-├── setup_epp.sql                 ← [3] Setup tabel EPP + 127 data EPP
-├── seed_epp_local.sql            ← [4] Akun Admin + 4 EPP lokal
-├── register_users.py             ← Script Python alternatif (Service Role)
-│
-└── src/
-    ├── main.tsx
-    ├── App.tsx                   ← Routing peran: Admin / EPP / EPR
-    ├── index.css
-    ├── types.ts                  ← TypeScript interfaces
-    ├── vite-env.d.ts
-    ├── lib/
-    │   └── supabase.ts           ← Inisialisasi Supabase client
-    └── components/
-        ├── Login.tsx             ← Halaman login (username + password)
-        ├── Dashboard.tsx         ← Dashboard toko EPR
-        ├── AdminDashboard.tsx    ← Dashboard Admin (tab EPR + EPP)
-        ├── EppDashboard.tsx      ← Dashboard EPP (monitoring EPR)
-        └── ChangePasswordModal.tsx ← Modal ganti password mandiri
+public/data/epr_data.json
 ```
 
----
+File ini di-*clone* dari repo `ariswidodo/EPR` dan berisi:
+- **24 partner EPR** (area AM ARIS, Jawa Tengah)
+- **12 bulan** data pembelian FY26 (Apr 2025 – Mar 2026)
+- **4 kategori**: Consumer, Consumables, Scanner, Dotmatrix
+- **62 peserta** program Booster Up (AM HERDIAN + SIGIT)
+- **19 EPP** ringkasan kontribusi supply
 
-## Keamanan & Hak Akses (Strict Read-Only untuk Partner)
-
-Seluruh hak akses dikunci langsung di tingkat database PostgreSQL Supabase via **Row-Level Security (RLS)**:
-
-- **Toko EPR (Retail)**: **READ-ONLY (Hanya Baca)**. Hanya bisa melihat target dan realisasi pembelian tokonya sendiri. **Tidak bisa mengedit atau menginput data**.
-- **EPP (Partner Premier)**: **READ-ONLY (Hanya Baca)**. Hanya bisa melihat monitoring performa toko retail secara netral. **Tidak bisa mengedit atau menginput data**.
-- **Admin (`admin@epr26.id`)**: **FULL ACCESS (Read & Write)**. Satu-satunya akun yang berhak menambah, mengedit, atau menghapus data master dan realisasi.
-- **Ganti Password**: Tetap dapat dilakukan mandiri oleh masing-masing pengguna untuk akun login pribadinya.
-- **Tanpa RLS bypass**: Sekalipun seseorang memodifikasi kode frontend di browser, database PostgreSQL Supabase secara mutlak menolak operasi `INSERT`, `UPDATE`, atau `DELETE` dari akun selain Admin.
+Untuk memperbarui data, ganti file `public/data/epr_data.json` lalu `npm run build` ulang.
 
 ---
 
-## File Excel Referensi (Desktop)
+## File Referensi (Desktop)
 
 | File | Keterangan |
 |---|---|
-| `EPR FY26.xlsx` | Sumber data master 24 toko EPR + target keuangan |
-| `EPP FY26.xlsx` | Sumber data master 127 EPP nasional |
-| `Akun_Toko_EPR_FY26.xlsx` | Rekap username & password 24 toko EPR |
-| `Akun_EPP_FY26.xlsx` | Rekap username & password 127 EPP |
+| `Desktop/Akun_Toko_EPR_FY26.xlsx` | Rekap username & password 24 toko EPR |
+| `Desktop/Akun_EPP_FY26.xlsx` | Rekap username & password 4 EPP lokal |
