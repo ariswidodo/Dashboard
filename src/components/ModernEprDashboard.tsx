@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { PartnerData, EprFullData, ProgramPartner, EppSource } from '../types-pbi';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import * as XLSX from 'xlsx';
 import { 
   Building2, 
   MapPin, 
@@ -23,7 +24,10 @@ import {
   Moon,
   BarChart2,
   Layers,
-  FileText
+  FileText,
+  Upload,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 
 interface Props {
@@ -61,6 +65,14 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   // Password Modal
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
+  // Upload Modal State (Khusus Admin)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
+    type: 'idle',
+    message: '',
+  });
+
   // Load Data on Mount
   useEffect(() => {
     const savedTheme = (localStorage.getItem('epr_theme') as 'light' | 'dark') || 'light';
@@ -73,18 +85,31 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch data utama EPR (target, realisasi, 24 toko)
+      // 1. Cek apakah ada data terbaru yang disimpan Admin di localStorage (Live Override)
+      const localDataRaw = localStorage.getItem('epr_custom_data');
+      if (localDataRaw) {
+        try {
+          const parsed = JSON.parse(localDataRaw);
+          if (parsed && parsed.partners && parsed.partners.length) {
+            setData(parsed);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Gagal membaca epr_custom_data dari localStorage:', e);
+        }
+      }
+
+      // 2. Fetch data utama EPR (target, realisasi, 24 toko) dari file statis
       const resp = await fetch(`/data/epr_data.json?t=${Date.now()}`);
       if (!resp.ok) throw new Error(`Gagal memuat data (HTTP ${resp.status})`);
       const json: EprFullData = await resp.json();
 
-      // Fetch program_partners dari booster data (sumber: Q3-Booster-Up repo)
-      // Data ini berisi 82 peserta Booster Up dari semua AM (ARIS 20, HERDIAN 42, SIGIT 20)
+      // 3. Fetch program_partners dari booster data (sumber: Q3-Booster-Up repo)
       try {
         const boosterResp = await fetch(`/data/program_partners.json?t=${Date.now()}`);
         if (boosterResp.ok) {
           const boosterJson = await boosterResp.json();
-          // Override program_partners dengan data yang benar
           json.program_partners = boosterJson.program_partners || json.program_partners;
         }
       } catch (boosterErr) {
@@ -384,6 +409,172 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     document.body.removeChild(link);
   };
 
+  // Upload Excel Handler (Khusus Admin)
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadLoading(true);
+    setUploadStatus({ type: 'idle', message: 'Membaca dan memproses file Excel...' });
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const buffer = ev.target?.result;
+        if (!buffer) throw new Error('File tidak dapat dibaca.');
+
+        const wb = XLSX.read(new Uint8Array(buffer as ArrayBuffer), { type: 'array' });
+        
+        // Cari sheet RETAIL atau sheet pertama
+        const sheetName = wb.SheetNames.includes('RETAIL') 
+          ? 'RETAIL' 
+          : wb.SheetNames.find(s => s.toLowerCase().includes('retail')) || wb.SheetNames[0];
+
+        const ws = wb.Sheets[sheetName];
+        if (!ws) throw new Error(`Sheet ${sheetName} tidak ditemukan.`);
+
+        const aoa: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+        if (!aoa || aoa.length < 17) {
+          throw new Error('Format file tidak sesuai standar template EPR. Baris data kurang.');
+        }
+
+        const CATS: Array<'Consumer' | 'Scanner' | 'Consumables' | 'Dotmatrix'> = ['Consumer', 'Scanner', 'Consumables', 'Dotmatrix'];
+        const starts: Record<'Consumer' | 'Scanner' | 'Consumables' | 'Dotmatrix', number> = {
+          Consumer: 13,
+          Scanner: 26,
+          Consumables: 39,
+          Dotmatrix: 52
+        };
+
+        const newPartners: PartnerData[] = [];
+
+        // Parse mulai baris 16 (0-indexed)
+        for (let r = 16; r < aoa.length; r++) {
+          const row = aoa[r];
+          if (!row || !row[1]) continue;
+
+          const code = String(row[1]).trim();
+          if (!code.startsWith('EPR-')) continue;
+
+          const name = String(row[2] || '').trim();
+          const city = String(row[4] || '').trim();
+          const am = String(row[7] || 'ARIS').trim();
+          const tier = String(row[9] || 'MOON').trim();
+          const target_fy = Number(row[10] || 0);
+          const target_h1 = Math.round(target_fy * 0.52);
+          const target_h2 = Math.round(target_fy * 0.48);
+
+          const monthly_by_cat: Record<string, number[]> = {};
+          const cat_totals: Record<string, number> = {};
+
+          CATS.forEach((c) => {
+            const f0 = starts[c];
+            const arr: number[] = [];
+            for (let m = 0; m < 12; m++) {
+              arr.push(Number(row[f0 + m] || 0));
+            }
+            monthly_by_cat[c] = arr;
+            cat_totals[c] = arr.reduce((a, b) => a + b, 0);
+          });
+
+          const monthly_total = Array.from({ length: 12 }, (_, m) =>
+            CATS.reduce((s, c) => s + (monthly_by_cat[c]?.[m] || 0), 0)
+          );
+
+          const actual_h1 = monthly_total.slice(0, 6).reduce((a, b) => a + b, 0);
+          const actual_h2 = monthly_total.slice(6, 12).reduce((a, b) => a + b, 0);
+          const actual_fy = actual_h1 + actual_h2;
+          const mid_hi = Number(row[71] || 0);
+          const low_end = Math.max(0, actual_fy - mid_hi);
+
+          // Pertahankan data detail jika toko sudah ada sebelumnya
+          const existing = data?.partners?.find(p => p.code === code);
+
+          newPartners.push({
+            code,
+            name: name || existing?.name || code,
+            city: city || existing?.city || 'JATENG',
+            tier: tier || existing?.tier || 'MOON',
+            am: am || existing?.am || 'ARIS',
+            target_fy,
+            target_original: target_fy,
+            target_original_h1: target_h1,
+            target_original_h2: target_h2,
+            target_original_q1: existing?.target_original_q1 || Math.round(target_fy * 0.22),
+            target_original_q2: existing?.target_original_q2 || Math.round(target_fy * 0.30),
+            target_original_q3: existing?.target_original_q3 || Math.round(target_fy * 0.30),
+            target_original_q4: existing?.target_original_q4 || Math.round(target_fy * 0.18),
+            target_original_monthly: existing?.target_original_monthly || Array(12).fill(Math.round(target_fy / 12)),
+            target_h1,
+            target_h2,
+            actual_fy,
+            actual_h1,
+            actual_h2,
+            actual_q1: monthly_total.slice(0, 3).reduce((a, b) => a + b, 0),
+            actual_q2: monthly_total.slice(3, 6).reduce((a, b) => a + b, 0),
+            actual_q3: monthly_total.slice(6, 9).reduce((a, b) => a + b, 0),
+            actual_q4: monthly_total.slice(9, 12).reduce((a, b) => a + b, 0),
+            mid_hi,
+            low_end,
+            tx_count: existing?.tx_count || 0,
+            qty_total: existing?.qty_total || 0,
+            cat_totals: cat_totals as any,
+            monthly_total,
+            monthly_by_cat: monthly_by_cat as any,
+            epp_sources: existing?.epp_sources || [],
+            program_sources: existing?.program_sources || [],
+          });
+        }
+
+        if (newPartners.length === 0) {
+          throw new Error('Tidak ditemukan data baris kode EPR (EPR-XXXX) pada sheet RETAIL.');
+        }
+
+        const updatedData: EprFullData = {
+          ...(data || ({} as any)),
+          partners: newPartners,
+          meta: {
+            ...(data?.meta || ({} as any)),
+            last_updated: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
+            last_source_file: file.name,
+          }
+        };
+
+        // Simpan ke localStorage agar bertahan di sesi browser Admin
+        localStorage.setItem('epr_custom_data', JSON.stringify(updatedData));
+        setData(updatedData);
+
+        setUploadStatus({
+          type: 'success',
+          message: `Berhasil mengimpor ${newPartners.length} data toko EPR dari file "${file.name}". Dashboard telah diperbarui!`
+        });
+      } catch (err: any) {
+        console.error('Error parsing Excel:', err);
+        setUploadStatus({
+          type: 'error',
+          message: err.message || 'Terjadi kesalahan saat memproses file Excel.'
+        });
+      } finally {
+        setUploadLoading(false);
+      }
+    };
+
+    reader.onerror = () => {
+      setUploadLoading(false);
+      setUploadStatus({ type: 'error', message: 'Gagal membaca file dari disk.' });
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleResetToDefaultData = () => {
+    if (!confirm('Apakah Anda yakin ingin mereset data dashboard kembali ke data bawaan sistem?')) return;
+    localStorage.removeItem('epr_custom_data');
+    fetchData();
+    setIsUploadModalOpen(false);
+    alert('Data dashboard berhasil dikembalikan ke data default.');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg)] flex flex-col items-center justify-center p-4">
@@ -437,6 +628,21 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         </div>
 
         <div className="topbar-actions">
+          {/* Tombol Upload Data Pembelian Khusus Admin */}
+          {isAdmin && (
+            <button 
+              onClick={() => {
+                setUploadStatus({ type: 'idle', message: '' });
+                setIsUploadModalOpen(true);
+              }}
+              className="btn btn-secondary border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40" 
+              title="Upload file Excel data pembelian EPR terbaru"
+            >
+              <Upload className="w-4 h-4 text-emerald-500" />
+              <span>Upload Data EPR</span>
+            </button>
+          )}
+
           <button 
             onClick={() => window.print()}
             className="btn btn-secondary" 
@@ -1550,6 +1756,119 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
       />
+
+      {/* Modal Upload Data Pembelian EPR (Khusus Admin) */}
+      {isAdmin && isUploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header Modal */}
+            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--text)]">Upload Data Pembelian EPR</h3>
+                  <p className="text-xs text-[var(--text-3)]">Impor data sell-in Excel terverifikasi (Sheet RETAIL)</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsUploadModalOpen(false)}
+                className="p-2 rounded-xl text-[var(--text-3)] hover:bg-[var(--surface-2)]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Isi Modal */}
+            <div className="p-6 space-y-5">
+              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4 text-xs text-[var(--text-2)] space-y-2">
+                <div className="font-bold text-[var(--text)] flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-500" />
+                  Format File yang Didukung:
+                </div>
+                <ul className="list-disc pl-4 space-y-1 text-slate-500">
+                  <li>File berekstensi <strong>.xlsx</strong> atau <strong>.xls</strong>.</li>
+                  <li>Memiliki sheet bernama <strong>RETAIL</strong> (standar laporan EPR Epson).</li>
+                  <li>Mencakup kolom Kode Toko (EPR-XXXX), Target, dan Realisasi 4 kategori (Consumer, Scanner, Consumables, Dotmatrix).</li>
+                </ul>
+              </div>
+
+              {/* Input Area */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-3)] mb-2">
+                  Pilih File Excel Laporan EPR
+                </label>
+                <div className="relative border-2 border-dashed border-[var(--border)] hover:border-emerald-500 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-[var(--surface)] group">
+                  <input 
+                    type="file" 
+                    accept=".xlsx, .xls"
+                    onChange={handleExcelUpload}
+                    disabled={uploadLoading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <Upload className="w-8 h-8 text-emerald-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-semibold text-[var(--text)]">
+                    Klik atau seret file Excel ke sini
+                  </p>
+                  <p className="text-2xs text-[var(--text-3)] mt-1">
+                    File akan diproses langsung di browser secara instan
+                  </p>
+                </div>
+              </div>
+
+              {/* Status & Feedback */}
+              {uploadLoading && (
+                <div className="flex items-center justify-center gap-2 text-xs text-emerald-600 font-medium p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Sedang memproses dan mengkalkulasi pencapaian toko...</span>
+                </div>
+              )}
+
+              {uploadStatus.type === 'success' && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs">
+                  <CheckCircle className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Impor Berhasil!</div>
+                    <div className="mt-0.5 leading-relaxed">{uploadStatus.message}</div>
+                  </div>
+                </div>
+              )}
+
+              {uploadStatus.type === 'error' && (
+                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
+                  <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Gagal Mengimpor File</div>
+                    <div className="mt-0.5 leading-relaxed">{uploadStatus.message}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Modal */}
+            <div className="p-4 px-6 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center justify-between">
+              <button 
+                type="button"
+                onClick={handleResetToDefaultData}
+                className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1.5"
+                title="Hapus data custom dan gunakan data bawaan sistem"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Reset ke Data Default</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => setIsUploadModalOpen(false)}
+                className="btn btn-secondary px-5 py-2 text-xs font-semibold"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
