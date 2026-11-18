@@ -129,6 +129,8 @@ Login  ──► Sistem deteksi peran otomatis
    | 2 | `seed_users.sql` | Buat 24 akun login EPR + perbaikan token NULL |
    | 3 | `setup_epp.sql` | Buat tabel EPP, RLS, insert 127 data EPP |
    | 4 | `seed_epp_local.sql` | Buat akun Admin + 4 akun EPP lokal Jawa Tengah |
+   | 5 | `update_epr_credentials.sql` | Update username & password 24 toko EPR |
+   | 6 | `import_pembelian_sales.sql` | Import data realisasi pembelian dari repo GitHub EPR (288 catatan bulanan) |
 
 4. Jalankan query perbaikan token (jika muncul error `Database error querying schema`):
    ```sql
