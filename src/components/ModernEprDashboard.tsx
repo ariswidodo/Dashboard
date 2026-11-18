@@ -447,14 +447,24 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         };
 
         const newPartners: PartnerData[] = [];
+        const seenCodes = new Set<string>();
+        let duplicateCount = 0;
 
         // Parse mulai baris 16 (0-indexed)
         for (let r = 16; r < aoa.length; r++) {
           const row = aoa[r];
           if (!row || !row[1]) continue;
 
-          const code = String(row[1]).trim();
+          const code = String(row[1]).trim().toUpperCase();
           if (!code.startsWith('EPR-')) continue;
+
+          // FILTER DATA DOUBLE (Deduplikasi):
+          // Jika kode EPR sudah pernah diproses pada baris sebelumnya, abaikan baris kembar ini
+          if (seenCodes.has(code)) {
+            duplicateCount++;
+            continue;
+          }
+          seenCodes.add(code);
 
           const name = String(row[2] || '').trim();
           const city = String(row[4] || '').trim();
@@ -544,9 +554,10 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         localStorage.setItem('epr_custom_data', JSON.stringify(updatedData));
         setData(updatedData);
 
+        const duplicateInfo = duplicateCount > 0 ? ` (${duplicateCount} data duplikat/kembar difilter otomatis)` : '';
         setUploadStatus({
           type: 'success',
-          message: `Berhasil mengimpor ${newPartners.length} data toko EPR dari file "${file.name}". Dashboard telah diperbarui!`
+          message: `Berhasil mengimpor ${newPartners.length} data toko EPR dari file "${file.name}"${duplicateInfo}. Dashboard telah diperbarui!`
         });
       } catch (err: any) {
         console.error('Error parsing Excel:', err);
