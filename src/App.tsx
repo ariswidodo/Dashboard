@@ -102,10 +102,14 @@ export function App() {
   }
 
   // Tampilkan Modern Power BI Dashboard yang adaptif terhadap peran pengguna (Admin / EPP / Toko Retail EPR)
+  // Ambil epr_code dari user_metadata (diisi saat akun dibuat via SQL)
+  const userEprCode: string = session.user.user_metadata?.epr_code || '';
+
   return (
     <ModernEprDashboard 
       userEmail={session.user.email} 
-      userRole={userRole || 'epr'} 
+      userRole={userRole || 'epr'}
+      userEprCode={userEprCode}
       onLogout={() => supabase.auth.signOut()} 
     />
   );

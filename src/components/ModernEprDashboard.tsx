@@ -29,10 +29,11 @@ import {
 interface Props {
   userEmail: string;
   userRole: 'admin' | 'epp' | 'epr';
+  userEprCode?: string; // e.g. "EPR-0038" – from user_metadata, used for exact EPR store isolation
   onLogout: () => void;
 }
 
-export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, onLogout }) => {
+export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userEprCode = '', onLogout }) => {
   const [data, setData] = useState<EprFullData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,42 +122,67 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, onLog
   const isEppUser = userRole === 'epp';
   const isAdmin = userRole === 'admin';
 
+  // For EPR users: resolve the exact partner record for subtitle / scoped views.
+  // Uses userEprCode (from user_metadata) with alias-table fallback.
+  const ownPartner = useMemo(() => {
+    if (!isEprUser || !data?.partners) return null;
+    if (userEprCode) return data.partners.find(p => p.code === userEprCode) || null;
+    // Fallback: alias table (same as filteredPartners fallback)
+    const u = cleanUsername;
+    const aliasMap: Record<string, string> = {
+      sinarjaya: 'EPR-0038', hetero: 'EPR-0054', heteroniaga: 'EPR-0054',
+      harrisma: 'EPR-0267', rajaink: 'EPR-0650', rajaprint: 'EPR-0650',
+      micro: 'EPR-0733', microprinter: 'EPR-0733', pixel: 'EPR-0881',
+      albumi: 'EPR-1002', kodoescom: 'EPR-1005', pribumijaya: 'EPR-1005',
+      yestoya: 'EPR-1197', primakom: 'EPR-1409', primakomputer: 'EPR-1409',
+      safrindo: 'EPR-1410', ipk: 'EPR-1413', infokom: 'EPR-1413',
+      sedardigital: 'EPR-1570', mitrapratama: 'EPR-1570', artadinata: 'EPR-1628',
+      khm: 'EPR-1768', karyahidupmulya: 'EPR-1768', putramandiri: 'EPR-1770',
+      ungu: 'EPR-1816', salamjaya: 'EPR-1816', bumiraya: 'EPR-1845',
+      ellite: 'EPR-1906', haiga: 'EPR-1907', afa: 'EPR-1966',
+      mitrasarana: 'EPR-1966', diamondindo: 'EPR-1967', nafiri: 'EPR-1999',
+      jayamakmur: 'EPR-2013',
+    };
+    const code = aliasMap[u];
+    return code ? (data.partners.find(p => p.code === code) || null) : null;
+  }, [isEprUser, data, userEprCode, cleanUsername]);
+
   // Filter partners based on role and slicers
   const filteredPartners = useMemo(() => {
     if (!data?.partners) return [];
 
     return data.partners.filter((p) => {
-      // If user is EPR, strictly show only their own store
+      // If user is EPR, strictly show only their own store via epr_code from metadata
       if (isEprUser) {
-        const matchesCode = p.code.toLowerCase() === cleanUsername;
-        const matchesUname = cleanUsername.includes(p.code.toLowerCase().replace('epr-', '')) ||
-                             cleanUsername.includes(p.name.toLowerCase().split(' ')[0].toLowerCase());
-        // Also check alias
-        if (p.code.toLowerCase() === 'epr-0038' && cleanUsername === 'sinarjaya') return true;
-        if (p.code.toLowerCase() === 'epr-0054' && (cleanUsername === 'hetero' || cleanUsername === 'heteroniaga')) return true;
-        if (p.code.toLowerCase() === 'epr-0267' && cleanUsername === 'harrisma') return true;
-        if (p.code.toLowerCase() === 'epr-0650' && (cleanUsername === 'rajaink' || cleanUsername === 'rajaprint')) return true;
-        if (p.code.toLowerCase() === 'epr-0733' && (cleanUsername === 'micro' || cleanUsername === 'microprinter')) return true;
-        if (p.code.toLowerCase() === 'epr-0881' && cleanUsername === 'pixel') return true;
-        if (p.code.toLowerCase() === 'epr-1002' && cleanUsername === 'albumi') return true;
-        if (p.code.toLowerCase() === 'epr-1005' && (cleanUsername === 'kodoescom' || cleanUsername === 'pribumijaya')) return true;
-        if (p.code.toLowerCase() === 'epr-1197' && cleanUsername === 'yestoya') return true;
-        if (p.code.toLowerCase() === 'epr-1409' && (cleanUsername === 'primakom' || cleanUsername === 'primakomputer')) return true;
-        if (p.code.toLowerCase() === 'epr-1410' && cleanUsername === 'safrindo') return true;
-        if (p.code.toLowerCase() === 'epr-1413' && (cleanUsername === 'ipk' || cleanUsername === 'infokom')) return true;
-        if (p.code.toLowerCase() === 'epr-1570' && (cleanUsername === 'sedardigital' || cleanUsername === 'mitrapratama')) return true;
-        if (p.code.toLowerCase() === 'epr-1628' && cleanUsername === 'artadinata') return true;
-        if (p.code.toLowerCase() === 'epr-1768' && (cleanUsername === 'khm' || cleanUsername === 'karyahidupmulya')) return true;
-        if (p.code.toLowerCase() === 'epr-1770' && cleanUsername === 'putramandiri') return true;
-        if (p.code.toLowerCase() === 'epr-1816' && (cleanUsername === 'ungu' || cleanUsername === 'salamjaya')) return true;
-        if (p.code.toLowerCase() === 'epr-1845' && cleanUsername === 'bumiraya') return true;
-        if (p.code.toLowerCase() === 'epr-1906' && cleanUsername === 'ellite') return true;
-        if (p.code.toLowerCase() === 'epr-1907' && cleanUsername === 'haiga') return true;
-        if (p.code.toLowerCase() === 'epr-1966' && (cleanUsername === 'afa' || cleanUsername === 'mitrasarana')) return true;
-        if (p.code.toLowerCase() === 'epr-1967' && cleanUsername === 'diamondindo') return true;
-        if (p.code.toLowerCase() === 'epr-1999' && cleanUsername === 'nafiri') return true;
-        if (p.code.toLowerCase() === 'epr-2013' && cleanUsername === 'jayamakmur') return true;
-        return matchesCode || matchesUname;
+        // Primary: exact match via epr_code from user_metadata (most reliable)
+        if (userEprCode) return p.code === userEprCode;
+        // Fallback: alias table (for local dev / no metadata)
+        const u = cleanUsername;
+        if (p.code === 'EPR-0038') return u === 'sinarjaya';
+        if (p.code === 'EPR-0054') return u === 'hetero' || u === 'heteroniaga';
+        if (p.code === 'EPR-0267') return u === 'harrisma';
+        if (p.code === 'EPR-0650') return u === 'rajaink' || u === 'rajaprint';
+        if (p.code === 'EPR-0733') return u === 'micro' || u === 'microprinter';
+        if (p.code === 'EPR-0881') return u === 'pixel';
+        if (p.code === 'EPR-1002') return u === 'albumi';
+        if (p.code === 'EPR-1005') return u === 'kodoescom' || u === 'pribumijaya';
+        if (p.code === 'EPR-1197') return u === 'yestoya';
+        if (p.code === 'EPR-1409') return u === 'primakom' || u === 'primakomputer';
+        if (p.code === 'EPR-1410') return u === 'safrindo';
+        if (p.code === 'EPR-1413') return u === 'ipk' || u === 'infokom';
+        if (p.code === 'EPR-1570') return u === 'sedardigital' || u === 'mitrapratama';
+        if (p.code === 'EPR-1628') return u === 'artadinata';
+        if (p.code === 'EPR-1768') return u === 'khm' || u === 'karyahidupmulya';
+        if (p.code === 'EPR-1770') return u === 'putramandiri';
+        if (p.code === 'EPR-1816') return u === 'ungu' || u === 'salamjaya';
+        if (p.code === 'EPR-1845') return u === 'bumiraya';
+        if (p.code === 'EPR-1906') return u === 'ellite';
+        if (p.code === 'EPR-1907') return u === 'haiga';
+        if (p.code === 'EPR-1966') return u === 'afa' || u === 'mitrasarana';
+        if (p.code === 'EPR-1967') return u === 'diamondindo';
+        if (p.code === 'EPR-1999') return u === 'nafiri';
+        if (p.code === 'EPR-2013') return u === 'jayamakmur';
+        return false;
       }
 
       // Slicers for Admin and EPP
@@ -182,7 +208,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, onLog
 
       return true;
     });
-  }, [data, isEprUser, cleanUsername, tierFilter, cityFilter, statusFilter, search, period]);
+  }, [data, isEprUser, userEprCode, cleanUsername, tierFilter, cityFilter, statusFilter, search, period]);
 
   // Compute period metrics for a partner
   function getPartnerPeriodMetrics(p: PartnerData) {
@@ -391,7 +417,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, onLog
             </div>
             <p className="subtitle" id="metaSubtitle">
               {isEprUser 
-                ? `Dashboard Toko Retail ${filteredPartners[0]?.name || cleanUsername.toUpperCase()} (Strict Read-Only)`
+                ? `Dashboard Toko Retail ${ownPartner?.name || cleanUsername.toUpperCase()} (Strict Read-Only)`
                 : `Monitoring Pencapaian 24 Toko Retail (Excl. PPN) · AM: ARIS`}
             </p>
           </div>
@@ -1060,42 +1086,70 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, onLog
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="partner-table">
-                    <thead>
-                      <tr>
-                        <th>No</th>
-                        <th>Kode EPR</th>
-                        <th>Nama Toko</th>
-                        <th>Kota</th>
-                        <th>Paket</th>
-                        <th>Tier</th>
-                        <th>AM</th>
-                        <th className="num">Reward</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(data.program_partners || []).map((prog, idx) => (
-                        <tr key={prog.code || idx}>
-                          <td className="mono text-slate-400 text-xs">{idx + 1}</td>
-                          <td><span className="badge badge-indigo mono">{prog.code}</span></td>
-                          <td className="font-bold text-slate-900">{prog.name}</td>
-                          <td className="text-xs text-slate-500">{prog.city}</td>
-                          <td><span className="badge badge-sky">{prog.package_type || 'Consumer'}</span></td>
-                          <td><span className={`badge tier-${prog.tier?.toLowerCase()}`}>{prog.tier}</span></td>
-                          <td className="text-xs">{prog.am}</td>
-                          <td className="num mono font-bold text-emerald-600">
-                            {prog.reward ? fmtRp(prog.reward) : 'Rp 3.900.000'}
-                          </td>
-                          <td>
-                            <span className="badge badge-emerald">Aktif Berjalan</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {(() => {
+                  // For EPR users: only show their own store if they're in the booster program
+                  const progList = isEprUser
+                    ? (data.program_partners || []).filter(p =>
+                        userEprCode
+                          ? p.code === userEprCode
+                          : p.code === ownPartner?.code
+                      )
+                    : (data.program_partners || []);
+
+                  if (isEprUser && progList.length === 0) {
+                    return (
+                      <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '36px', marginBottom: '12px' }}>📋</div>
+                        <p style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                          Toko Anda Tidak Terdaftar sebagai Peserta Paket Booster Up
+                        </p>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto' }}>
+                          Program Booster Up Q3 FY26 diikuti oleh toko retail di area AM HERDIAN &amp; SIGIT.
+                          Hubungi AM Anda (ARIS) untuk informasi program selanjutnya.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="partner-table">
+                        <thead>
+                          <tr>
+                            <th>No</th>
+                            <th>Kode EPR</th>
+                            <th>Nama Toko</th>
+                            <th>Kota</th>
+                            <th>Paket</th>
+                            <th>Tier</th>
+                            <th>AM</th>
+                            <th className="num">Reward</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {progList.map((prog, idx) => (
+                            <tr key={prog.code || idx}>
+                              <td className="mono text-slate-400 text-xs">{idx + 1}</td>
+                              <td><span className="badge badge-indigo mono">{prog.code}</span></td>
+                              <td className="font-bold text-slate-900">{prog.name}</td>
+                              <td className="text-xs text-slate-500">{prog.city}</td>
+                              <td><span className="badge badge-sky">{prog.package_type || 'Consumer'}</span></td>
+                              <td><span className={`badge tier-${prog.tier?.toLowerCase()}`}>{prog.tier}</span></td>
+                              <td className="text-xs">{prog.am}</td>
+                              <td className="num mono font-bold text-emerald-600">
+                                {prog.reward ? fmtRp(prog.reward) : 'Rp 3.900.000'}
+                              </td>
+                              <td>
+                                <span className="badge badge-emerald">Aktif Berjalan</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
