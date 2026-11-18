@@ -72,34 +72,34 @@ Login  ──► Sistem deteksi peran otomatis
 | `admin` | `admin@epr26.id` | `AdminEpr2026!` | Seluruh data EPR + EPP (Full Access) |
 
 ### EPR — Toko Retail (24 Akun)
-> Username cukup diinput nama tokonya saja (tanpa `@`). Sistem otomatis memetakan ke domain internal `@epr26.id`.
+> Pengguna dapat login menggunakan **Username** saja (sistem otomatis mengarahkan ke akun yang tepat) atau menggunakan **Email Akun**.
 
-| Kode | Nama Toko | Username | Password Default |
-|---|---|---|---|
-| EPR-0038 | SINAR JAYA COMPUTER / CV PINDITECH MAJU ABADI | `sinarjaya` | `Epr2026!SinarJaya` |
-| EPR-0054 | PT HETERO NIAGA GLOBAL | `heteroniaga` | `Epr2026!HeteroNiaga` |
-| EPR-0267 | PT HARRISMA PRATAMAJAYA | `harrisma` | `Epr2026!Harrisma` |
-| EPR-0650 | CV RAJA PRINT SOLUTION | `rajaprint` | `Epr2026!RajaPrint` |
-| EPR-0733 | MICRO PRINTER | `microprinter` | `Epr2026!MicroPrinter` |
-| EPR-0881 | UD PIXEL | `pixel` | `Epr2026!PixelSemarang` |
-| EPR-1002 | AL BUMI IT STORE | `albumi` | `Epr2026!AlBumi` |
-| EPR-1005 | CV PRIBUMI JAYA KOMPUTAMA | `pribumijaya` | `Epr2026!PribumiJaya` |
-| EPR-1197 | CV YESTOYA ABADI | `yestoya` | `Epr2026!YestoyaAbadi` |
-| EPR-1409 | PRIMA KOMPUTER | `primakomputer` | `Epr2026!PrimaKomputer` |
-| EPR-1410 | CV SAFRINDO PERKASA | `safrindo` | `Epr2026!Safrindo` |
-| EPR-1413 | PT INFOKOM PUTRA KENCANA | `infokom` | `Epr2026!InfokomPutra` |
-| EPR-1570 | CV MITRA PRATAMA KOMPUTINDO | `mitrapratama` | `Epr2026!MitraPratama` |
-| EPR-1628 | CV ARTADINATA PERKASA ABADI | `artadinata` | `Epr2026!Artadinata` |
-| EPR-1768 | CV KARYA HIDUP MULYA | `karyahidupmulya` | `Epr2026!KaryaHidupMulya` |
-| EPR-1770 | CV PUTRA MANDIRI | `putramandiri` | `Epr2026!PutraMandiri` |
-| EPR-1816 | CV SALAM JAYA KOMPUTINDO | `salamjaya` | `Epr2026!SalamJaya` |
-| EPR-1845 | CV Bumi Raya Indonesia | `bumiraya` | `Epr2026!BumiRaya` |
-| EPR-1906 | ELLITE COMPUTER WELERI | `ellite` | `Epr2026!ElliteWeleri` |
-| EPR-1907 | PT HAIGA CITRA DIGITAL | `haiga` | `Epr2026!HaigaCitra` |
-| EPR-1966 | CV MITRA SARANA TEKNIK | `mitrasarana` | `Epr2026!MitraSarana` |
-| EPR-1967 | CV DIAMOND INDO | `diamondindo` | `Epr2026!DiamondIndo` |
-| EPR-1999 | CV NAFIRI | `nafiri` | `Epr2026!NafiriSemarang` |
-| EPR-2013 | CV JAYA MAKMUR STATIONARY | `jayamakmur` | `Epr2026!JayaMakmur` |
+| Kode | Nama Toko | Username | Email Akun | Password Default |
+|---|---|---|---|---|
+| EPR-0038 | SINAR JAYA COMPUTER / CV PINDITECH MAJU ABADI | `sinarjaya` | `sinarjaya@epr26.id` | `Epr2026!SinarJaya` |
+| EPR-0054 | PT HETERO NIAGA GLOBAL | `hetero` | `heteroniaga@epr26.id` | `Epr2026!HeteroNiaga` |
+| EPR-0267 | PT HARRISMA PRATAMAJAYA | `harrisma` | `harrisma@epr26.id` | `Epr2026!Harrisma` |
+| EPR-0650 | CV RAJA PRINT SOLUTION | `rajaink` | `rajaprint@epr26.id` | `Epr2026!RajaPrint` |
+| EPR-0733 | MICRO PRINTER | `micro` | `microprinter@epr26.id` | `Epr2026!MicroPrinter` |
+| EPR-0881 | UD PIXEL | `pixel` | `pixel@epr26.id` | `Epr2026!PixelSemarang` |
+| EPR-1002 | AL BUMI IT STORE | `albumi` | `albumi@epr26.id` | `Epr2026!AlBumi` |
+| EPR-1005 | CV PRIBUMI JAYA KOMPUTAMA | `kodoescom` | `pribumijaya@epr26.id` | `Epr2026!PribumiJaya` |
+| EPR-1197 | CV YESTOYA ABADI | `yestoya` | `yestoya@epr26.id` | `Epr2026!YestoyaAbadi` |
+| EPR-1409 | PRIMA KOMPUTER | `primakom` | `primakomputer@epr26.id` | `Epr2026!PrimaKomputer` |
+| EPR-1410 | CV SAFRINDO PERKASA | `safrindo` | `safrindo@epr26.id` | `Epr2026!Safrindo` |
+| EPR-1413 | PT INFOKOM PUTRA KENCANA | `ipk` | `infokom@epr26.id` | `Epr2026!InfokomPutra` |
+| EPR-1570 | CV MITRA PRATAMA KOMPUTINDO | `sedardigital` | `mitrapratama@epr26.id` | `Epr2026!MitraPratama` |
+| EPR-1628 | CV ARTADINATA PERKASA ABADI | `artadinata` | `artadinata@epr26.id` | `Epr2026!Artadinata` |
+| EPR-1768 | CV KARYA HIDUP MULYA | `khm` | `karyahidupmulya@epr26.id` | `Epr2026!KaryaHidupMulya` |
+| EPR-1770 | CV PUTRA MANDIRI | `putramandiri` | `putramandiri@epr26.id` | `Epr2026!PutraMandiri` |
+| EPR-1816 | CV SALAM JAYA KOMPUTINDO | `ungu` | `salamjaya@epr26.id` | `Epr2026!SalamJaya` |
+| EPR-1845 | CV Bumi Raya Indonesia | `bumiraya` | `bumiraya@epr26.id` | `Epr2026!BumiRaya` |
+| EPR-1906 | ELLITE COMPUTER WELERI | `ellite` | `ellite@epr26.id` | `Epr2026!ElliteWeleri` |
+| EPR-1907 | PT HAIGA CITRA DIGITAL | `haiga` | `haiga@epr26.id` | `Epr2026!HaigaCitra` |
+| EPR-1966 | CV MITRA SARANA TEKNIK | `afa` | `mitrasarana@epr26.id` | `Epr2026!MitraSarana` |
+| EPR-1967 | CV DIAMOND INDO | `diamondindo` | `diamondindo@epr26.id` | `Epr2026!DiamondIndo` |
+| EPR-1999 | CV NAFIRI | `nafiri` | `nafiri@epr26.id` | `Epr2026!NafiriSemarang` |
+| EPR-2013 | CV JAYA MAKMUR STATIONARY | `jayamakmur` | `jayamakmur@epr26.id` | `Epr2026!JayaMakmur` |
 
 ### EPP — Partner Premier Aktif (4 Akun Lokal Jawa Tengah)
 > Username cukup diinput namanya saja. Sistem otomatis mencoba domain `@epr26.id` lalu fallback ke `@epp26.id`. Pengguna juga bisa memasukkan email lengkap.

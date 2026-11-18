@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, User, Eye, EyeOff, Loader2, AlertCircle, Store } from 'lucide-react';
 
+// Pemetaan username khusus toko ke email autentikasi terdaftar
+const USERNAME_ALIASES: Record<string, string> = {
+  hetero: 'heteroniaga@epr26.id',
+  rajaink: 'rajaprint@epr26.id',
+  micro: 'microprinter@epr26.id',
+  kodoescom: 'pribumijaya@epr26.id',
+  primakom: 'primakomputer@epr26.id',
+  ipk: 'infokom@epr26.id',
+  sedardigital: 'mitrapratama@epr26.id',
+  khm: 'karyahidupmulya@epr26.id',
+  ungu: 'salamjaya@epr26.id',
+  afa: 'mitrasarana@epr26.id',
+};
+
 interface Props {
   onLoginSuccess: () => void;
 }
@@ -19,16 +33,30 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     const cleanUsername = username.trim().toLowerCase();
+    const prefix = cleanUsername.split('@')[0];
 
-    // Jika sudah ada @, gunakan langsung. Kalau tidak, coba kedua domain.
-    const domains = cleanUsername.includes('@')
-      ? [cleanUsername]
-      : [`${cleanUsername}@epr26.id`, `${cleanUsername}@epp26.id`];
+    // Bangun daftar kandidat email: alias khusus, domain @epr26.id, dan domain @epp26.id
+    const candidates: string[] = [];
+
+    if (USERNAME_ALIASES[prefix]) {
+      candidates.push(USERNAME_ALIASES[prefix]);
+    }
+
+    if (cleanUsername.includes('@')) {
+      if (!candidates.includes(cleanUsername)) {
+        candidates.push(cleanUsername);
+      }
+    } else {
+      const eprEmail = `${cleanUsername}@epr26.id`;
+      const eppEmail = `${cleanUsername}@epp26.id`;
+      if (!candidates.includes(eprEmail)) candidates.push(eprEmail);
+      if (!candidates.includes(eppEmail)) candidates.push(eppEmail);
+    }
 
     try {
       let lastError: any = null;
 
-      for (const emailToUse of domains) {
+      for (const emailToUse of candidates) {
         const { data, error: authError } = await supabase.auth.signInWithPassword({
           email: emailToUse,
           password: password,

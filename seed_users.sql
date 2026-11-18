@@ -77,7 +77,7 @@ begin
         ''
       );
 
-      -- 2. Insert ke auth.identities (id = text = email, bukan uuid)
+      -- 2. Insert ke auth.identities (id = uuid, provider_id = text email)
       insert into auth.identities (
         id,
         user_id,
@@ -88,7 +88,7 @@ begin
         created_at,
         updated_at
       ) values (
-        acc.email,
+        new_uid,
         new_uid,
         jsonb_build_object('sub', new_uid::text, 'email', acc.email),
         'email',
