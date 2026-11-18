@@ -54,7 +54,11 @@ begin
         raw_app_meta_data,
         raw_user_meta_data,
         created_at,
-        updated_at
+        updated_at,
+        confirmation_token,
+        recovery_token,
+        email_change,
+        email_change_token_new
       ) values (
         '00000000-0000-0000-0000-000000000000',
         new_uid,
@@ -66,7 +70,11 @@ begin
         '{"provider":"email","providers":["email"]}'::jsonb,
         jsonb_build_object('username', acc.username, 'epr_code', acc.code),
         now(),
-        now()
+        now(),
+        '',
+        '',
+        '',
+        ''
       );
 
       -- 2. Insert ke auth.identities
