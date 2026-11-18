@@ -40,16 +40,34 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
   const fetchStoreData = async () => {
     setLoading(true);
     try {
-      // 1. Ambil data Toko berdasarkan user yang login (difilter RLS)
-      const { data: storeData, error: storeError } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Pengguna tidak ditemukan');
+
+      const extractedUsername = user.email?.split('@')[0]?.toLowerCase();
+
+      // 1. Ambil data Toko: cocokkan user_id atau username email
+      let { data: storeData, error: storeError } = await supabase
         .from('epr_stores')
         .select('*')
-        .single();
+        .or(`user_id.eq.${user.id},username.eq.${extractedUsername}`)
+        .maybeSingle();
 
-      if (storeError) throw storeError;
+      if (storeError) {
+        console.error('Store fetch error:', storeError);
+      }
+
+      // 2. Jika user_id belum terisi, otomatis tautkan sekarang
+      if (storeData && (!storeData.user_id || storeData.user_id !== user.id)) {
+        await supabase
+          .from('epr_stores')
+          .update({ user_id: user.id })
+          .eq('id', storeData.id);
+        storeData.user_id = user.id;
+      }
+
       setStore(storeData);
 
-      // 2. Ambil catatan penjualan jika ada
+      // 3. Ambil catatan penjualan jika toko ditemukan
       if (storeData) {
         const { data: salesData } = await supabase
           .from('sales_records')
