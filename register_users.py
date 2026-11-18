@@ -1,15 +1,21 @@
 """
-Script Otomatis untuk Mendaftarkan 24 Akun Toko EPR ke Supabase Auth
+Script Pendaftaran 24 Akun Toko EPR Menggunakan Supabase Admin API
+(Bypass / Bebas dari 'email rate limit exceeded')
+
 Cara pakai:
-1. Pastikan file .env di folder ini sudah diisi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY
-2. Jalankan: python register_users.py
+1. Buka Supabase Dashboard -> Project Settings -> API.
+2. Salin 'service_role' key (secret).
+3. Masukkan ke file .env:
+   SUPABASE_SERVICE_ROLE_KEY=eyJh...
+4. Jalankan: python register_users.py
 """
 
 import os, time, requests, json
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 supabase_url = None
-supabase_key = None
+service_key = None
+anon_key = None
 
 if os.path.exists(env_path):
     with open(env_path, 'r', encoding='utf-8') as f:
@@ -17,12 +23,28 @@ if os.path.exists(env_path):
             line = line.strip()
             if line.startswith('VITE_SUPABASE_URL='):
                 supabase_url = line.split('=', 1)[1].strip()
+            elif line.startswith('SUPABASE_SERVICE_ROLE_KEY='):
+                service_key = line.split('=', 1)[1].strip()
             elif line.startswith('VITE_SUPABASE_ANON_KEY='):
-                supabase_key = line.split('=', 1)[1].strip()
+                anon_key = line.split('=', 1)[1].strip()
 
-if not supabase_url or not supabase_key:
-    print("❌ ERROR: VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY belum diisi di file .env!")
-    print("Silakan buat/isi file .env terlebih dahulu.")
+# Jika belum ada di .env, tanyakan interaktif atau gunakan yang ada
+if not supabase_url:
+    supabase_url = input("Masukkan Supabase URL (contoh: https://xyz.supabase.co): ").strip()
+
+active_key = service_key or anon_key
+use_admin = bool(service_key)
+
+if not service_key:
+    print("\n[INFO] 'SUPABASE_SERVICE_ROLE_KEY' belum ditemukan di .env.")
+    print("Untuk menghindari batasan 'email rate limit exceeded', disarankan menggunakan Service Role Key.")
+    user_input_key = input("Masukkan Service Role Key Anda (atau tekan Enter untuk mencoba dengan Anon Key): ").strip()
+    if user_input_key:
+        active_key = user_input_key
+        use_admin = True
+
+if not active_key:
+    print("❌ ERROR: Tidak ada API key yang ditemukan!")
     exit(1)
 
 stores_accounts = [
@@ -52,41 +74,60 @@ stores_accounts = [
     ('EPR-2013', 'jayamakmur', 'Epr2026!JayaMakmur')
 ]
 
-signup_endpoint = f"{supabase_url.rstrip('/')}/auth/v1/signup"
-headers = {
-    "apikey": supabase_key,
-    "Authorization": f"Bearer {supabase_key}",
-    "Content-Type": "application/json"
-}
-
-print(f"🚀 Memulai pendaftaran otomatis {len(stores_accounts)} akun toko ke Supabase...")
+if use_admin:
+    endpoint = f"{supabase_url.rstrip('/')}/auth/v1/admin/users"
+    headers = {
+        "apikey": active_key,
+        "Authorization": f"Bearer {active_key}",
+        "Content-Type": "application/json"
+    }
+    print(f"\n🚀 Mendaftarkan {len(stores_accounts)} akun melalui Admin API (Bebas Rate Limit)...")
+else:
+    endpoint = f"{supabase_url.rstrip('/')}/auth/v1/signup"
+    headers = {
+        "apikey": active_key,
+        "Authorization": f"Bearer {active_key}",
+        "Content-Type": "application/json"
+    }
+    print(f"\n⚠️ Mendaftarkan melalui Public Signup API...")
 
 success_count = 0
 for idx, (code, uname, pwd) in enumerate(stores_accounts, 1):
     email = f"{uname}@epr26.id"
-    payload = {
-        "email": email,
-        "password": pwd,
-        "data": {
-            "epr_code": code,
-            "username": uname
+    if use_admin:
+        payload = {
+            "email": email,
+            "password": pwd,
+            "email_confirm": True,
+            "user_metadata": {
+                "epr_code": code,
+                "username": uname
+            }
         }
-    }
+    else:
+        payload = {
+            "email": email,
+            "password": pwd,
+            "data": {
+                "epr_code": code,
+                "username": uname
+            }
+        }
     
     try:
-        resp = requests.post(signup_endpoint, headers=headers, json=payload, timeout=10)
+        resp = requests.post(endpoint, headers=headers, json=payload, timeout=10)
         if resp.status_code in [200, 201]:
-            print(f"[{idx}/24] ✅ {code} | {uname} -> Terdaftar")
+            print(f"[{idx}/24] ✅ {code} | {uname} -> Sukses Terdaftar")
             success_count += 1
-        elif "already registered" in resp.text:
-            print(f"[{idx}/24] ℹ️ {code} | {uname} -> Sudah pernah terdaftar")
+        elif "already registered" in resp.text or "already exists" in resp.text:
+            print(f"[{idx}/24] ℹ️ {code} | {uname} -> Sudah pernah terdaftar (OK)")
             success_count += 1
         else:
-            print(f"[{idx}/24] ⚠️ {code} | {uname} -> {resp.status_code}: {resp.text}")
+            print(f"[{idx}/24] ⚠️ {code} | {uname} -> Gagal: {resp.text}")
     except Exception as e:
-        print(f"[{idx}/24] ❌ {code} | {uname} -> Error: {e}")
-    time.sleep(0.3)
+        print(f"[{idx}/24] ❌ {code} | {uname} -> Error koneksi: {e}")
+    time.sleep(0.2)
 
 print("\n" + "="*50)
-print(f"🎉 Selesai! {success_count} dari {len(stores_accounts)} akun siap digunakan untuk login.")
+print(f"🎉 Selesai! {success_count} dari {len(stores_accounts)} akun berhasil disiapkan.")
 print("="*50)
