@@ -437,6 +437,16 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         setData(updatedData);
         setLastStats(stats);
 
+        // Jika upload berhasil, pastikan view period dialihkan ke FY atau periode yang relevan
+        // agar user langsung melihat angka pencapaian dan tidak mengira data kosong/hilang
+        if (period === 'h2' && stats.totalVerifiedAmount > 0) {
+          // Bila di H2 masih sedikit/kosong sedangkan data baru bertambah, alihkan ke 'fy'
+          const h2Sum = updatedData.partners.reduce((s, p) => s + (p.actual_h2 || 0), 0);
+          if (h2Sum === 0) {
+            setPeriod('fy');
+          }
+        }
+
         const summaryMsg = `Template: ${stats.templateVersion} | Terverifikasi: ${stats.verifiedCount.toLocaleString('id-ID')} baris | Duplikat: ${stats.duplicateCount.toLocaleString('id-ID')} | Luar Master: ${stats.outsideMasterCount.toLocaleString('id-ID')}`;
         
         setUploadStatus({

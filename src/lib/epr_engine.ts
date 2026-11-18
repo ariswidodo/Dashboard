@@ -248,14 +248,15 @@ export function processUploadedWorkbook(
 ): { updatedData: EprFullData; stats: VerificationStats } {
   const sheetNames = wb.SheetNames;
 
-  // 1. Cek apakah ini template V3: sheet diawali "Report Retail Q"
-  const v3Sheets = sheetNames.filter(s => s.trim().startsWith('Report Retail Q'));
-  // 2. Cek apakah template V2: sheet "Partner Hub"
-  const isV2 = sheetNames.includes('Partner Hub');
+  // 1. Cek apakah ini template V3: sheet diawali "Report Retail" atau mengandung "Report Retail"
+  const v3Sheets = sheetNames.filter(s => s.trim().toLowerCase().includes('report retail'));
+  // 2. Cek apakah template V2: sheet mengandung "Partner Hub"
+  const v2Sheets = sheetNames.filter(s => s.trim().toLowerCase().includes('partner hub'));
+  const isV2 = v2Sheets.length > 0;
   // 3. Cek apakah template V1: sheet "Sheet1"
-  const isV1 = sheetNames.includes('Sheet1');
+  const isV1 = sheetNames.some(s => s.trim().toLowerCase() === 'sheet1');
   // 4. Cek apakah sheet ringkasan "RETAIL"
-  const isRetailSummary = sheetNames.some(s => s.toUpperCase().includes('RETAIL'));
+  const isRetailSummary = sheetNames.some(s => s.toUpperCase().includes('RETAIL') && !s.toLowerCase().includes('report retail'));
 
   const stats: VerificationStats = {
     totalInputRows: 0,
@@ -268,13 +269,41 @@ export function processUploadedWorkbook(
     rejectedRows: []
   };
 
-  // Buat copy partners dari master
+  // Buat copy partners dari master & MERGE dengan data existing (baseline) agar data tidak hilang/terhapus!
   const partnersMap = new Map<string, PartnerData>();
   EPR_MASTER.forEach(m => {
     const existing = existingData?.partners?.find(p => p.code === m.code);
-    const target_fy = m.target_original || m.target_excl;
-    const target_h1 = Math.round(target_fy * 0.52);
-    const target_h2 = Math.round(target_fy * 0.48);
+    const target_fy = existing?.target_fy || m.target_original || m.target_excl;
+    const target_h1 = existing?.target_h1 || Math.round(target_fy * 0.52);
+    const target_h2 = existing?.target_h2 || Math.round(target_fy * 0.48);
+
+    // Kloning data bulanan dan kategori yang sudah ada sebelumnya
+    const monthly_total = existing?.monthly_total 
+      ? [...existing.monthly_total] 
+      : Array(12).fill(0);
+      
+    const monthly_by_cat = {
+      Consumer: existing?.monthly_by_cat?.Consumer ? [...existing.monthly_by_cat.Consumer] : Array(12).fill(0),
+      Scanner: existing?.monthly_by_cat?.Scanner ? [...existing.monthly_by_cat.Scanner] : Array(12).fill(0),
+      Consumables: existing?.monthly_by_cat?.Consumables ? [...existing.monthly_by_cat.Consumables] : Array(12).fill(0),
+      Dotmatrix: existing?.monthly_by_cat?.Dotmatrix ? [...existing.monthly_by_cat.Dotmatrix] : Array(12).fill(0),
+    };
+
+    const cat_totals = existing?.cat_totals 
+      ? { ...existing.cat_totals } 
+      : { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 };
+
+    // Kloning epp_sources
+    const epp_sources: EppSource[] = (existing?.epp_sources || []).map(src => ({
+      ...src,
+      cats: { ...src.cats }
+    }));
+
+    // Kloning program_sources
+    const program_sources = (existing?.program_sources || []).map(ps => ({
+      ...ps,
+      cats: { ...ps.cats }
+    }));
 
     partnersMap.set(m.code, {
       code: m.code,
@@ -283,14 +312,14 @@ export function processUploadedWorkbook(
       tier: m.category,
       am: m.am,
       target_fy,
-      target_original: target_fy,
-      target_original_h1: target_h1,
-      target_original_h2: target_h2,
-      target_original_q1: Math.round(target_fy * 0.22),
-      target_original_q2: Math.round(target_fy * 0.30),
-      target_original_q3: Math.round(target_fy * 0.30),
-      target_original_q4: Math.round(target_fy * 0.18),
-      target_original_monthly: Array(12).fill(0).map((_, i) => {
+      target_original: existing?.target_original || target_fy,
+      target_original_h1: existing?.target_original_h1 || target_h1,
+      target_original_h2: existing?.target_original_h2 || target_h2,
+      target_original_q1: existing?.target_original_q1 || Math.round(target_fy * 0.22),
+      target_original_q2: existing?.target_original_q2 || Math.round(target_fy * 0.30),
+      target_original_q3: existing?.target_original_q3 || Math.round(target_fy * 0.30),
+      target_original_q4: existing?.target_original_q4 || Math.round(target_fy * 0.18),
+      target_original_monthly: existing?.target_original_monthly ? [...existing.target_original_monthly] : Array(12).fill(0).map((_, i) => {
         if (i < 3) return Math.round(target_fy * 0.22 / 3);
         if (i < 6) return Math.round(target_fy * 0.10);
         if (i < 9) return Math.round(target_fy * 0.10);
@@ -298,27 +327,22 @@ export function processUploadedWorkbook(
       }),
       target_h1,
       target_h2,
-      actual_fy: 0,
-      actual_h1: 0,
-      actual_h2: 0,
-      actual_q1: 0,
-      actual_q2: 0,
-      actual_q3: 0,
-      actual_q4: 0,
-      mid_hi: 0,
-      low_end: 0,
-      tx_count: 0,
-      qty_total: 0,
-      cat_totals: { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 },
-      monthly_total: Array(12).fill(0),
-      monthly_by_cat: {
-        Consumer: Array(12).fill(0),
-        Scanner: Array(12).fill(0),
-        Consumables: Array(12).fill(0),
-        Dotmatrix: Array(12).fill(0),
-      },
-      epp_sources: existing?.epp_sources || [],
-      program_sources: existing?.program_sources || [],
+      actual_fy: existing?.actual_fy || 0,
+      actual_h1: existing?.actual_h1 || 0,
+      actual_h2: existing?.actual_h2 || 0,
+      actual_q1: existing?.actual_q1 || 0,
+      actual_q2: existing?.actual_q2 || 0,
+      actual_q3: existing?.actual_q3 || 0,
+      actual_q4: existing?.actual_q4 || 0,
+      mid_hi: existing?.mid_hi || 0,
+      low_end: existing?.low_end || 0,
+      tx_count: existing?.tx_count || 0,
+      qty_total: existing?.qty_total || 0,
+      cat_totals,
+      monthly_total,
+      monthly_by_cat,
+      epp_sources,
+      program_sources,
     });
   });
 
@@ -326,7 +350,7 @@ export function processUploadedWorkbook(
   // KASUS A: INPUT TRANSAKSI DETAIL (Template V1, V2, atau V3)
   // -------------------------------------------------------------
   if (v3Sheets.length > 0 || isV2 || isV1) {
-    const targetSheets = v3Sheets.length > 0 ? v3Sheets : (isV2 ? ['Partner Hub'] : ['Sheet1']);
+    const targetSheets = v3Sheets.length > 0 ? v3Sheets : (isV2 ? v2Sheets : ['Sheet1']);
     const templateVer = v3Sheets.length > 0 ? 'V3 (Report Retail)' : (isV2 ? 'V2 (Partner Hub)' : 'V1 (Sheet1)');
     stats.templateVersion = templateVer;
     stats.sourceSheet = targetSheets.join(', ');
@@ -462,18 +486,17 @@ export function processUploadedWorkbook(
         p.monthly_total[mIdx] = (p.monthly_total[mIdx] || 0) + totalPrice;
         p.monthly_by_cat[cat][mIdx] = (p.monthly_by_cat[cat][mIdx] || 0) + totalPrice;
         p.cat_totals[cat] = (p.cat_totals[cat] || 0) + totalPrice;
-        p.actual_fy += totalPrice;
         p.tx_count += 1;
         p.qty_total += qty;
 
-        // Distribusi kuartal
-        if (mIdx < 3) p.actual_q1 += totalPrice;
-        else if (mIdx < 6) p.actual_q2 += totalPrice;
-        else if (mIdx < 9) p.actual_q3 += totalPrice;
-        else p.actual_q4 += totalPrice;
-
+        // Hitung ulang kuartal, semester, dan FY dari akumulasi total bulanan
+        p.actual_q1 = p.monthly_total.slice(0, 3).reduce((a, b) => a + b, 0);
+        p.actual_q2 = p.monthly_total.slice(3, 6).reduce((a, b) => a + b, 0);
+        p.actual_q3 = p.monthly_total.slice(6, 9).reduce((a, b) => a + b, 0);
+        p.actual_q4 = p.monthly_total.slice(9, 12).reduce((a, b) => a + b, 0);
         p.actual_h1 = p.actual_q1 + p.actual_q2;
         p.actual_h2 = p.actual_q3 + p.actual_q4;
+        p.actual_fy = p.actual_h1 + p.actual_h2;
 
         // Catat EPP Supplier
         const eppName = String(cEppName !== -1 ? row[cEppName] || '' : '').trim();

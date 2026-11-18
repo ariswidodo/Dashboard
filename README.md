@@ -169,6 +169,35 @@ epr-dashboard/
 | **Overview & Target H2** | ✅ Semua 24 toko + slicers | ✅ Semua 24 toko + slicers | ✅ Terisolasi: hanya toko sendiri |
 | **Paketan Berjalan (Booster Up)** | ✅ Semua 82 peserta + tracking bulanan | ✅ Semua 82 peserta + tracking bulanan | ✅ Terisolasi: paket toko sendiri + tracking bulanan |
 | **Kontribusi EPP & Audit** | ✅ 19 EPP lengkap | ❌ **Dihilangkan** | ❌ **Dihilangkan** |
+| **Upload Data Pembelian EPR** | ✅ Ada di Topbar (Modal Impor) | ❌ Tidak Ada | ❌ Tidak Ada |
+
+---
+
+## Fitur Upload Data Pembelian EPR (Khusus Admin)
+
+Dashboard Admin dilengkapi tombol **"Upload Data EPR"** di bagian atas (topbar) dengan mesin verifikasi dan filter deduplikasi penuh yang mengadopsi engine dari repositori `ariswidodo/EPR` (`src/lib/epr_engine.ts`):
+
+1. **Format & Template yang Didukung**:
+   - **Template V3 (`Report Retail Q*`)**: Mendukung sheet laporan resmi kuartal Epson (Rebate Category & Total Price Net Exclude PPN).
+   - **Template V2 (`Partner Hub*`)**: Sheet data download Epson Partner Hub (Gross dibagi 1,11 Exclude PPN 11%).
+   - **Template V1 (`Sheet1`)**: Detail transaksi sell-out reguler (dibagi 1,11 Exclude PPN 11%).
+   - **Sheet `RETAIL` (Summary Matrix)**: Rekapitulasi target dan realisasi bulanan 4 kategori (*Consumer, Scanner, Consumables, Dotmatrix*).
+
+2. **Mesin Verifikasi & Deduplikasi Ketat**:
+   - **Validasi Master Toko**: Hanya transaksi dari 24 toko EPR resmi terdaftar yang diterima. Transaksi dari toko di luar master otomatis ditolak dengan status `LUAR DATABASE EPR`.
+   - **Deduplikasi Baris Kembar (`makeDeduplicationKey`)**: Mencegah duplikasi data penjualan dengan identifikasi multi-atribut:
+     - Nomor Invoice + Material SKU + Reseller Code + Tanggal.
+     - Serial Number (SN) / UID perangkat.
+     - Jika terdeteksi sama, baris ditolak dengan status `KEMBAR DALAM INPUT`.
+
+3. **Penggabungan Data Akumulatif (Non-Destructive Merge)**:
+   - File transaksi yang diunggah (misal kuartal berjalan atau bulanan) digabungkan di atas data baseline yang ada tanpa menghapus pencapaian bulan-bulan sebelumnya.
+   - Perhitungan kuartal (Q1–Q4), semester (H1, H2), dan total tahun fiskal (FY) otomatis diperbarui secara akurat.
+   - Apabila transaksi yang diunggah berada pada periode kuartal terdahulu, dashboard otomatis mengarahkan atau menyesuaikan tampilan agar data langsung terlihat.
+
+4. **Penyimpanan Live & Tombol Reset**:
+   - Hasil upload tersimpan di `localStorage` peramban Admin (`epr_custom_data`), sehingga data langsung tampil di dashboard secara instan.
+   - Admin dapat mengembalikan data ke bawaan awal kapan saja dengan tombol **"Kembalikan ke Data Awal"**.
 
 ---
 
