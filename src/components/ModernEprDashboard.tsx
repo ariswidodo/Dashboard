@@ -1163,8 +1163,17 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                 <div className="card-head">
                   <div>
                     <h2>Kontribusi Partner Premier (EPP) &amp; Status Audit</h2>
-                    <p className="card-sub">Rekapitulasi distribusi supply EPP ke seluruh toko retail EPR FY26</p>
+                    <p className="card-sub">
+                      {isAdmin
+                        ? 'Rekapitulasi distribusi supply EPP ke seluruh toko retail EPR FY26'
+                        : 'Ringkasan kontribusi supply Anda ke toko retail EPR FY26 · Identitas EPP lain dirahasiakan'}
+                    </p>
                   </div>
+                  {!isAdmin && (
+                    <span className="badge badge-amber" style={{ alignSelf: 'flex-start' }}>
+                      🔒 Confidential — Identitas EPP lain tersembunyi
+                    </span>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto mt-4">
@@ -1181,17 +1190,70 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       </tr>
                     </thead>
                     <tbody>
-                      {(data.epp_summary || []).map((epp, idx) => (
-                        <tr key={epp.code || idx}>
-                          <td className="mono text-slate-400 text-xs">{idx + 1}</td>
-                          <td><span className="badge badge-emerald mono">{epp.code}</span></td>
-                          <td className="font-bold text-slate-900">{epp.name}</td>
-                          <td className="text-xs text-slate-500">{epp.city}</td>
-                          <td className="num mono">{epp.tx_count || '-'}</td>
-                          <td className="num mono font-bold text-indigo-600">{epp.partner_count || '-'}</td>
-                          <td className="num mono font-bold text-slate-900">{fmtRp(epp.total)}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        const list = data.epp_summary || [];
+                        // Admin: tampilkan semua lengkap
+                        if (isAdmin) {
+                          return list.map((epp, idx) => (
+                            <tr key={epp.code || idx}>
+                              <td className="mono text-slate-400 text-xs">{idx + 1}</td>
+                              <td><span className="badge badge-emerald mono">{epp.code}</span></td>
+                              <td className="font-bold text-slate-900">{epp.name}</td>
+                              <td className="text-xs text-slate-500">{epp.city}</td>
+                              <td className="num mono">{epp.tx_count ?? epp.tx ?? '-'}</td>
+                              <td className="num mono font-bold text-indigo-600">{epp.partner_count ?? '-'}</td>
+                              <td className="num mono font-bold text-slate-900">{fmtRp(epp.total)}</td>
+                            </tr>
+                          ));
+                        }
+
+                        // EPP user: match baris milik sendiri (by username in email)
+                        // username EPP: computa → EPP-0050, topdistribusi → EPP-0055,
+                        //               compumart → EPP-0056 (PT COMPUTEK), rakaperkasa → EPP-0245
+                        const eppAliasMap: Record<string, string> = {
+                          computa:        'EPP-0050',
+                          topdistribusi:  'EPP-0055',
+                          compumart:      'EPP-0056',
+                          rakaperkasa:    'EPP-0245',
+                        };
+                        const myEppCode = eppAliasMap[cleanUsername] || '';
+                        let ownIdx = 1;
+                        let anonCounter = 1;
+
+                        return list.map((epp, idx) => {
+                          const isOwn = myEppCode && epp.code === myEppCode;
+                          if (isOwn) {
+                            return (
+                              <tr key={epp.code} style={{ background: 'var(--accent-soft, #eff6ff)' }}>
+                                <td className="mono text-slate-400 text-xs">{idx + 1}</td>
+                                <td><span className="badge badge-emerald mono">{epp.code}</span></td>
+                                <td className="font-bold text-slate-900">
+                                  {epp.name}
+                                  <span className="badge badge-amber ml-2" style={{ fontSize: '10px' }}>Akun Anda</span>
+                                </td>
+                                <td className="text-xs text-slate-500">{epp.city}</td>
+                                <td className="num mono">{epp.tx_count ?? epp.tx ?? '-'}</td>
+                                <td className="num mono font-bold text-indigo-600">{epp.partner_count ?? '-'}</td>
+                                <td className="num mono font-bold text-slate-900">{fmtRp(epp.total)}</td>
+                              </tr>
+                            );
+                          } else {
+                            // Anonymize kompetitor EPP
+                            const anonN = anonCounter++;
+                            return (
+                              <tr key={epp.code || idx} style={{ opacity: 0.55 }}>
+                                <td className="mono text-slate-400 text-xs">{idx + 1}</td>
+                                <td><span className="badge badge-indigo mono" style={{ letterSpacing: 0 }}>EPP-****</span></td>
+                                <td className="text-slate-400 italic text-sm">— EPP Lain #{anonN} —</td>
+                                <td className="text-xs text-slate-400">—</td>
+                                <td className="num mono text-slate-400">***</td>
+                                <td className="num mono text-slate-400">***</td>
+                                <td className="num mono text-slate-400">***</td>
+                              </tr>
+                            );
+                          }
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>

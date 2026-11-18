@@ -85,8 +85,9 @@ export interface EppSummaryItem {
   name: string;
   city: string;
   total: number;
-  tx_count: number;
-  partner_count: number;
+  tx_count?: number;  // alias: may come as tx_count or tx
+  tx?: number;        // alias used in raw JSON
+  partner_count?: number;
   cats: Record<string, number>;
 }
 
