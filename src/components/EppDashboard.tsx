@@ -18,6 +18,21 @@ import {
   Briefcase
 } from 'lucide-react';
 
+const FISCAL_MONTHS = [
+  { num: 1, label: 'Bulan 1 (Apr 2026)', quarter: 'Q1' },
+  { num: 2, label: 'Bulan 2 (Mei 2026)', quarter: 'Q1' },
+  { num: 3, label: 'Bulan 3 (Jun 2026)', quarter: 'Q1' },
+  { num: 4, label: 'Bulan 4 (Jul 2026)', quarter: 'Q2' },
+  { num: 5, label: 'Bulan 5 (Agu 2026)', quarter: 'Q2' },
+  { num: 6, label: 'Bulan 6 (Sep 2026)', quarter: 'Q2' },
+  { num: 7, label: 'Bulan 7 (Okt 2026)', quarter: 'Q3' },
+  { num: 8, label: 'Bulan 8 (Nov 2026)', quarter: 'Q3' },
+  { num: 9, label: 'Bulan 9 (Des 2026)', quarter: 'Q3' },
+  { num: 10, label: 'Bulan 10 (Jan 2027)', quarter: 'Q4' },
+  { num: 11, label: 'Bulan 11 (Feb 2027)', quarter: 'Q4' },
+  { num: 12, label: 'Bulan 12 (Mar 2027)', quarter: 'Q4' },
+];
+
 interface Props {
   userEmail: string;
   onLogout: () => void;
@@ -404,12 +419,13 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
               Pencapaian Pembelian Bulanan (Konsolidasi Netral)
             </div>
             <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl divide-y text-xs">
-              {Array.from({ length: 11 }, (_, i) => i + 1).map((m) => {
+              {FISCAL_MONTHS.map((item) => {
+                const m = item.num;
                 const rec = allSales.find((s) => s.store_id === detailModalStore.id && s.month === m);
                 const val = rec?.achievement_amount || 0;
                 return (
                   <div key={m} className="p-3 flex justify-between items-center hover:bg-slate-50">
-                    <span className="font-medium text-slate-700">Bulan {m}</span>
+                    <span className="font-medium text-slate-700">{item.label}</span>
                     <span className={val > 0 ? 'font-bold text-slate-900' : 'text-slate-400'}>
                       {val > 0 ? formatRupiah(val) : 'Belum ada pembelian terdata'}
                     </span>

@@ -19,6 +19,21 @@ import {
   DollarSign
 } from 'lucide-react';
 
+const FISCAL_MONTHS = [
+  { num: 1, label: 'Bulan 1 (Apr 2026)', quarter: 'Q1', half: 'H1' },
+  { num: 2, label: 'Bulan 2 (Mei 2026)', quarter: 'Q1', half: 'H1' },
+  { num: 3, label: 'Bulan 3 (Jun 2026)', quarter: 'Q1', half: 'H1' },
+  { num: 4, label: 'Bulan 4 (Jul 2026)', quarter: 'Q2', half: 'H1' },
+  { num: 5, label: 'Bulan 5 (Agu 2026)', quarter: 'Q2', half: 'H1' },
+  { num: 6, label: 'Bulan 6 (Sep 2026)', quarter: 'Q2', half: 'H1' },
+  { num: 7, label: 'Bulan 7 (Okt 2026)', quarter: 'Q3', half: 'H2' },
+  { num: 8, label: 'Bulan 8 (Nov 2026)', quarter: 'Q3', half: 'H2' },
+  { num: 9, label: 'Bulan 9 (Des 2026)', quarter: 'Q3', half: 'H2' },
+  { num: 10, label: 'Bulan 10 (Jan 2027)', quarter: 'Q4', half: 'H2' },
+  { num: 11, label: 'Bulan 11 (Feb 2027)', quarter: 'Q4', half: 'H2' },
+  { num: 12, label: 'Bulan 12 (Mar 2027)', quarter: 'Q4', half: 'H2' },
+];
+
 interface Props {
   userEmail: string;
   onLogout: () => void;
@@ -421,7 +436,8 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {Array.from({ length: 11 }, (_, i) => i + 1).map((monthNum) => {
+                {FISCAL_MONTHS.map((m) => {
+                  const monthNum = m.num;
                   const record = sales.find((s) => s.month === monthNum);
                   const actual = record?.achievement_amount || 0;
                   const monthlyTarget = store.target_monthly || 1;
@@ -432,7 +448,12 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                   return (
                     <tr key={monthNum} className="hover:bg-slate-50/60 transition">
                       <td className="py-4 px-6 font-medium text-slate-900">
-                        Bulan {monthNum}
+                        <div className="flex items-center gap-2">
+                          <span>{m.label}</span>
+                          <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {m.quarter} · {m.half}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-4 px-6 text-slate-600">
                         {formatRupiah(store.target_monthly)}
