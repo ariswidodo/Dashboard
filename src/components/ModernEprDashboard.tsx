@@ -1655,47 +1655,47 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       {/* Modal Upload Data Pembelian EPR (Khusus Admin) */}
       {isAdmin && isUploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
             {/* Header Modal */}
-            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
-                  <Upload className="w-5 h-5" />
+            <div className="p-4 px-5 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+                  <Upload className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[var(--text)]">Upload Data Pembelian EPR</h3>
-                  <p className="text-xs text-[var(--text-3)]">Impor data sell-in Excel terverifikasi (Sheet RETAIL)</p>
+                  <h3 className="text-sm font-bold text-[var(--text)]">Upload Data Pembelian EPR</h3>
+                  <p className="text-2xs text-[var(--text-3)]">Impor data sell-in Excel terverifikasi</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsUploadModalOpen(false)}
-                className="p-2 rounded-xl text-[var(--text-3)] hover:bg-[var(--surface-2)]"
+                className="p-1.5 rounded-lg text-[var(--text-3)] hover:bg-[var(--surface-2)]"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Isi Modal */}
-            <div className="p-6 space-y-5">
-              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-4 text-xs text-[var(--text-2)] space-y-2">
+            <div className="p-4 px-5 space-y-3.5 overflow-y-auto">
+              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-3 text-2xs text-[var(--text-2)] space-y-1.5">
                 <div className="font-bold text-[var(--text)] flex items-center gap-1.5">
-                  <Database className="w-4 h-4 text-emerald-500" />
-                  Format File &amp; Template yang Didukung Otomatis:
+                  <Database className="w-3.5 h-3.5 text-emerald-500" />
+                  Format &amp; Template Didukung:
                 </div>
-                <ul className="list-disc pl-4 space-y-1 text-slate-500">
-                  <li><strong>Template V3 (Report Retail Q1/Q2/Q3/Q4)</strong>: Otomatis membaca kolom Rebate Category &amp; Total Price. Nilai langsung dihitung (sudah Excl. PPN).</li>
-                  <li><strong>Template V2 (Partner Hub) &amp; V1 (Sheet1)</strong>: Nilai transaksi otomatis dibagi 1,11 (*Excl. PPN 11%*).</li>
-                  <li><strong>Sheet RETAIL (Summary Matrix)</strong>: Sheet rekapitulasi target &amp; pencapaian bulanan 4 kategori.</li>
-                  <li><strong>Filter Cek Double Aktif</strong>: Baris kembar dalam input maupun di luar master toko otomatis ditolak &amp; diaudit.</li>
+                <ul className="list-disc pl-4 space-y-0.5 text-slate-500">
+                  <li><strong>Template V3 (Report Retail Q*)</strong>: Rebate Category &amp; Total Price (Excl. PPN).</li>
+                  <li><strong>Template V2 (Partner Hub) &amp; V1 (Sheet1)</strong>: Gross / 1,11 (Excl. PPN 11%).</li>
+                  <li><strong>Sheet RETAIL</strong>: Rekapitulasi bulanan 4 kategori.</li>
+                  <li><strong>Deduplikasi Aktif</strong>: Baris kembar &amp; luar master otomatis ditolak.</li>
                 </ul>
               </div>
 
               {/* Input Area */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-3)] mb-2">
-                  Pilih File Excel Sell Out / Pembelian EPR
+                <label className="block text-2xs font-bold uppercase tracking-wider text-[var(--text-3)] mb-1.5">
+                  Pilih File Excel
                 </label>
-                <div className="relative border-2 border-dashed border-[var(--border)] hover:border-emerald-500 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-[var(--surface)] group">
+                <div className="relative border-2 border-dashed border-[var(--border)] hover:border-emerald-500 rounded-xl p-4 text-center cursor-pointer transition-colors bg-[var(--surface)] group">
                   <input 
                     type="file" 
                     accept=".xlsx, .xls, .xlsm"
@@ -1703,52 +1703,52 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     disabled={uploadLoading}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                   />
-                  <Upload className="w-8 h-8 text-emerald-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <Upload className="w-6 h-6 text-emerald-500 mx-auto mb-1 group-hover:scale-110 transition-transform" />
                   <p className="text-xs font-semibold text-[var(--text)]">
-                    Klik atau seret file Excel ke sini (.xlsx, .xls, .xlsm)
+                    Klik atau seret file Excel ke sini
                   </p>
-                  <p className="text-2xs text-[var(--text-3)] mt-1">
-                    Mesin verifikasi &amp; deduplikasi memproses otomatis di browser
+                  <p className="text-2xs text-[var(--text-3)]">
+                    Format .xlsx, .xls, .xlsm
                   </p>
                 </div>
               </div>
 
               {/* Status & Feedback */}
               {uploadLoading && (
-                <div className="flex items-center justify-center gap-2 text-xs text-emerald-600 font-medium p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Sedang memverifikasi data transaksi, cek kode toko, dan deduplikasi...</span>
+                <div className="flex items-center justify-center gap-2 text-xs text-emerald-600 font-medium p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Memverifikasi data transaksi...</span>
                 </div>
               )}
 
               {uploadStatus.type === 'success' && (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs">
-                    <CheckCircle className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs">
+                    <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
                     <div>
-                      <div className="font-bold">Verifikasi &amp; Impor Berhasil!</div>
-                      <div className="mt-0.5 leading-relaxed font-mono">{uploadStatus.message}</div>
+                      <div className="font-bold text-2xs">Verifikasi Berhasil!</div>
+                      <div className="text-2xs leading-relaxed font-mono mt-0.5">{uploadStatus.message}</div>
                     </div>
                   </div>
 
                   {/* Summary Stats Grid */}
                   {lastStats && (
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="p-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
-                        <span className="text-2xs text-slate-400 block">Total Baris</span>
-                        <strong className="mono text-slate-800 text-sm font-bold">
+                    <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
+                      <div className="p-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border)]">
+                        <span className="text-2xs text-slate-400 block">Total Input</span>
+                        <strong className="mono text-slate-800 text-xs font-bold">
                           {lastStats.totalInputRows.toLocaleString('id-ID')}
                         </strong>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-500/20">
+                      <div className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-500/20">
                         <span className="text-2xs text-emerald-600 block">Terverifikasi</span>
-                        <strong className="mono text-emerald-600 text-sm font-bold">
+                        <strong className="mono text-emerald-600 text-xs font-bold">
                           {lastStats.verifiedCount.toLocaleString('id-ID')}
                         </strong>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-500/20">
-                        <span className="text-2xs text-rose-500 block">Ditolak / Double</span>
-                        <strong className="mono text-rose-600 text-sm font-bold">
+                      <div className="p-2 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-500/20">
+                        <span className="text-2xs text-rose-500 block">Ditolak / Kembar</span>
+                        <strong className="mono text-rose-600 text-xs font-bold">
                           {(lastStats.duplicateCount + lastStats.outsideMasterCount).toLocaleString('id-ID')}
                         </strong>
                       </div>
@@ -1757,20 +1757,20 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
                   {/* Reject Preview */}
                   {lastStats && lastStats.rejectedRows.length > 0 && (
-                    <div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--surface-2)] max-h-36 overflow-y-auto text-2xs space-y-1">
-                      <div className="font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex justify-between">
-                        <span>Daftar Baris Ditolak ({lastStats.rejectedRows.length})</span>
-                        <span className="text-rose-500">{lastStats.duplicateCount} Kembar · {lastStats.outsideMasterCount} Luar Master</span>
+                    <div className="border border-[var(--border)] rounded-lg p-2.5 bg-[var(--surface-2)] max-h-28 overflow-y-auto text-2xs space-y-1">
+                      <div className="font-bold text-slate-700 dark:text-slate-300 mb-1 flex justify-between">
+                        <span>Baris Ditolak ({lastStats.rejectedRows.length})</span>
+                        <span className="text-rose-500 font-normal">{lastStats.duplicateCount} Kembar · {lastStats.outsideMasterCount} Luar Master</span>
                       </div>
-                      {lastStats.rejectedRows.slice(0, 10).map((rej, i) => (
-                        <div key={i} className="flex justify-between items-center py-0.5 border-b border-[var(--border)]/50 last:border-none">
-                          <span className="mono text-slate-400">Baris {rej.rowNum}: {rej.name || rej.code || '-'}</span>
-                          <span className="badge badge-rose text-2xs px-1.5 py-0">{rej.reason}</span>
+                      {lastStats.rejectedRows.slice(0, 8).map((rej, i) => (
+                        <div key={i} className="flex justify-between items-center py-0.5 border-b border-[var(--border)]/40 last:border-none">
+                          <span className="mono text-slate-400 truncate max-w-[200px]">R{rej.rowNum}: {rej.name || rej.code || '-'}</span>
+                          <span className="badge badge-rose text-2xs px-1 py-0">{rej.reason}</span>
                         </div>
                       ))}
-                      {lastStats.rejectedRows.length > 10 && (
-                        <div className="text-center text-slate-400 pt-1">
-                          ... dan {lastStats.rejectedRows.length - 10} baris lainnya
+                      {lastStats.rejectedRows.length > 8 && (
+                        <div className="text-center text-slate-400 pt-0.5">
+                          ... dan {lastStats.rejectedRows.length - 8} baris lainnya
                         </div>
                       )}
                     </div>
@@ -1779,32 +1779,32 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
               )}
 
               {uploadStatus.type === 'error' && (
-                <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
-                  <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
                   <div>
-                    <div className="font-bold">Gagal Mengimpor File</div>
-                    <div className="mt-0.5 leading-relaxed">{uploadStatus.message}</div>
+                    <div className="font-bold text-2xs">Gagal Mengimpor</div>
+                    <div className="text-2xs leading-relaxed mt-0.5">{uploadStatus.message}</div>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Footer Modal */}
-            <div className="p-4 px-6 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center justify-between">
+            <div className="p-3 px-5 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center justify-between shrink-0">
               <button 
                 type="button"
                 onClick={handleResetToDefaultData}
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1.5"
+                className="text-2xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1"
                 title="Hapus data custom dan gunakan data bawaan sistem"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Reset ke Data Default</span>
+                <RefreshCw className="w-3 h-3" />
+                <span>Reset Data</span>
               </button>
 
               <button 
                 type="button"
                 onClick={() => setIsUploadModalOpen(false)}
-                className="btn btn-secondary px-5 py-2 text-xs font-semibold"
+                className="btn btn-secondary px-3.5 py-1.5 text-xs font-semibold"
               >
                 Tutup
               </button>
