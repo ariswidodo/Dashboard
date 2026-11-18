@@ -51,12 +51,12 @@ begin
         now(), now(), '', '', '', ''
       );
 
-      -- Insert ke auth.identities (id = text, provider_id = email)
+      -- Insert ke auth.identities (id = uuid, provider_id = email text)
       insert into auth.identities (
         id, user_id, identity_data, provider, provider_id,
         last_sign_in_at, created_at, updated_at
       ) values (
-        acc.email,
+        new_uid,
         new_uid,
         jsonb_build_object('sub', new_uid::text, 'email', acc.email),
         'email',
@@ -104,7 +104,7 @@ begin
       id, user_id, identity_data, provider, provider_id,
       last_sign_in_at, created_at, updated_at
     ) values (
-      'admin@epr26.id',
+      admin_uid,
       admin_uid,
       jsonb_build_object('sub', admin_uid::text, 'email', 'admin@epr26.id'),
       'email',
