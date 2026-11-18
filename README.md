@@ -1,89 +1,260 @@
-# Portal Partner EPR FY26 - Dashboard Toko
+# Portal Partner EPR & EPP FY26 — Dashboard Toko
 
-Website dashboard partner retail khusus untuk pemantauan target penjualan FY26 dan realisasi bulanan toko dengan sistem multi-tenant berbasis **Supabase PostgreSQL Row-Level Security (RLS)** dan frontend **React + Vite + Tailwind CSS**, siap di-deploy secara gratis ke **Cloudflare Pages**.
-
----
-
-## Fitur Utama
-
-1. **Keamanan Tingkat Database (RLS)**:
-   - Toko yang login hanya dapat melihat data toko & target penjualannya sendiri.
-   - Database Supabase menolak akses data antar-toko secara native.
-2. **Login Ramah Pengguna**:
-   - Toko masuk hanya menggunakan **Username** dan **Password (Default)** tanpa perlu menghafal kode toko atau email.
-3. **Mandiri Ganti Password**:
-   - Pengguna dapat mengganti password mereka sendiri langsung melalui tombol di dashboard toko.
-4. **Tracking Realisasi Penjualan Bulanan**:
-   - Toko dapat menginput dan memperbarui pencapaian aktual per bulan (Bulan 1 - 11) dan melihat persentase pencapaian (% Achievement).
+Website dashboard multi-tenant untuk monitoring target penjualan dan realisasi bulanan seluruh partner retail (EPR) dan partner premier (EPP) FY26, dibangun dengan **React + Vite + Tailwind CSS**, backend **Supabase PostgreSQL + RLS**, dan hosting gratis di **Cloudflare Pages**.
 
 ---
 
-## Langkah 1: Setup Supabase
+## Arsitektur Sistem
 
-1. Buka dashboard [Supabase](https://supabase.com/dashboard) dan pilih/buat project Anda.
-2. Buka menu **Authentication** > **Providers** > **Email**:
-   - Nonaktifkan / uncheck pilihan **"Confirm email"** (agar akun toko langsung aktif dan bisa langsung login dengan password default tanpa verifikasi email).
-3. Buka menu **SQL Editor**, buat tab baru, lalu salin dan jalankan seluruh isi file:
-   📄 [`supabase_setup.sql`](./supabase_setup.sql)
-   *(Skrip ini otomatis membuat tabel, RLS policy, trigger penaut akun, dan memasukkan seluruh 24 data master toko dari Excel)*.
-
----
-
-## Langkah 2: Konfigurasi Environment (`.env`)
-
-1. Salin `.env.example` menjadi `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Buka dashboard Supabase > **Project Settings** > **API**, lalu isi `.env`:
-   ```env
-   VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhbg...
-   ```
-
----
-
-## Langkah 3: Daftarkan 24 Akun Toko Secara Otomatis
-
-Jalankan script Python berikut di terminal untuk mendaftarkan 24 akun toko sekaligus:
-```bash
-python register_users.py
 ```
-*Daftar lengkap username & password default untuk dibagikan ke toko dapat dilihat di file `C:\Users\Qeea.Deeva\Desktop\Akun_Toko_EPR_FY26.xlsx`.*
+Login  ──► Sistem deteksi peran otomatis
+              │
+              ├─► ADMIN  (admin@epr26.id)
+              │     • Tab EPR: Lihat & inspeksi 24 toko retail
+              │     • Tab EPP: Lihat 127 master data EPP nasional
+              │     • Klik "Lihat Detail" untuk inspeksi tiap toko
+              │
+              ├─► EPP (computa, compumart, dst...)
+              │     • Profil identitas EPP sendiri
+              │     • Monitoring performa pembelian 24 toko retail (EPR)
+              │     • TIDAK menampilkan identitas EPP pemasok lainnya
+              │     • Filter per kota, kategori, search nama toko
+              │     • Modal detail pembelian bulanan per toko EPR
+              │
+              └─► EPR (sinarjaya, harrisma, dst...)
+                    • Dashboard target & profil toko sendiri
+                    • Kartu metrik: Target FY26, H1/H2, Bulanan
+                    • Input & tracking realisasi penjualan per bulan
+                    • Progress bar pencapaian (% Achievement)
+                    • Ganti password mandiri
+```
 
 ---
 
-## Langkah 4: Uji Coba di Komputer Lokal
+## Stack Teknologi
 
-```bash
+| Layer | Teknologi |
+|---|---|
+| Frontend | React 18 + TypeScript + Vite 8 |
+| Styling | Tailwind CSS v4 |
+| Icons | Lucide React |
+| Backend / Auth | Supabase (PostgreSQL + GoTrue Auth) |
+| Keamanan Data | Row-Level Security (RLS) PostgreSQL |
+| Hosting | Cloudflare Pages (Free Tier) |
+| Repositori | GitHub |
+
+---
+
+## Data Master
+
+| Program | Jumlah | Wilayah | File Excel Sumber |
+|---|---|---|---|
+| **EPR** (Retail) | 24 Toko | Jawa Tengah (AM: ARIS) | `EPR FY26.xlsx` |
+| **EPP** (Partner Premier) | 127 Toko | Seluruh Indonesia | `EPP FY26.xlsx` |
+
+### Kategori Tier EPR
+
+| Tier | Warna | Category Target |
+|---|---|---|
+| ☀️ SUN | Amber | Rp 6.000.000.000 |
+| ⭐ STAR | Purple | Rp 4.000.000.000 |
+| 🌙 MOON | Sky Blue | Rp 1.500.000.000 |
+| 🌍 EARTH | Emerald | Rp 2.500.000.000 |
+| 🌙 CRESCENT | Slate | Rp 200.000.000 |
+
+---
+
+## Akun Default
+
+### Admin
+| Username | Password | Akses |
+|---|---|---|
+| `admin` | `AdminEpr2026!` | Seluruh data EPR + EPP |
+
+### EPR — Toko Retail (24 Akun)
+> Semua username menggunakan domain `@epr26.id`
+
+| Kode | Nama Toko | Username | Password Default |
+|---|---|---|---|
+| EPR-0038 | SINAR JAYA COMPUTER / CV PINDITECH MAJU ABADI | `sinarjaya` | `Epr2026!SinarJaya` |
+| EPR-0054 | PT HETERO NIAGA GLOBAL | `heteroniaga` | `Epr2026!HeteroNiaga` |
+| EPR-0267 | PT HARRISMA PRATAMAJAYA | `harrisma` | `Epr2026!Harrisma` |
+| EPR-0650 | CV RAJA PRINT SOLUTION | `rajaprint` | `Epr2026!RajaPrint` |
+| EPR-0733 | MICRO PRINTER | `microprinter` | `Epr2026!MicroPrinter` |
+| EPR-0881 | UD PIXEL | `pixel` | `Epr2026!PixelSemarang` |
+| EPR-1002 | AL BUMI IT STORE | `albumi` | `Epr2026!AlBumi` |
+| EPR-1005 | CV PRIBUMI JAYA KOMPUTAMA | `pribumijaya` | `Epr2026!PribumiJaya` |
+| EPR-1197 | CV YESTOYA ABADI | `yestoya` | `Epr2026!YestoyaAbadi` |
+| EPR-1409 | PRIMA KOMPUTER | `primakomputer` | `Epr2026!PrimaKomputer` |
+| EPR-1410 | CV SAFRINDO PERKASA | `safrindo` | `Epr2026!Safrindo` |
+| EPR-1413 | PT INFOKOM PUTRA KENCANA | `infokom` | `Epr2026!InfokomPutra` |
+| EPR-1570 | CV MITRA PRATAMA KOMPUTINDO | `mitrapratama` | `Epr2026!MitraPratama` |
+| EPR-1628 | CV ARTADINATA PERKASA ABADI | `artadinata` | `Epr2026!Artadinata` |
+| EPR-1768 | CV KARYA HIDUP MULYA | `karyahidupmulya` | `Epr2026!KaryaHidupMulya` |
+| EPR-1770 | CV PUTRA MANDIRI | `putramandiri` | `Epr2026!PutraMandiri` |
+| EPR-1816 | CV SALAM JAYA KOMPUTINDO | `salamjaya` | `Epr2026!SalamJaya` |
+| EPR-1845 | CV Bumi Raya Indonesia | `bumiraya` | `Epr2026!BumiRaya` |
+| EPR-1906 | ELLITE COMPUTER WELERI | `ellite` | `Epr2026!ElliteWeleri` |
+| EPR-1907 | PT HAIGA CITRA DIGITAL | `haiga` | `Epr2026!HaigaCitra` |
+| EPR-1966 | CV MITRA SARANA TEKNIK | `mitrasarana` | `Epr2026!MitraSarana` |
+| EPR-1967 | CV DIAMOND INDO | `diamondindo` | `Epr2026!DiamondIndo` |
+| EPR-1999 | CV NAFIRI | `nafiri` | `Epr2026!NafiriSemarang` |
+| EPR-2013 | CV JAYA MAKMUR STATIONARY | `jayamakmur` | `Epr2026!JayaMakmur` |
+
+### EPP — Partner Premier Aktif (4 Akun Lokal Jawa Tengah)
+| Kode | Nama EPP | Kota | Username | Password Default |
+|---|---|---|---|---|
+| EPP-0050 | COMPUTA | Yogyakarta | `computa` | `Epp2026!Computa` |
+| EPP-0055 | TOP DISTRIBUSI | Yogyakarta | `topdistribusi` | `Epp2026!TopDistribusi` |
+| EPP-0056 | COMPUMART | Semarang | `compumart` | `Epp2026!Compumart` |
+| EPP-0245 | PT RAKA PERKASA TEKNOLOGI | Yogyakarta | `rakaperkasa` | `Epp2026!RakaPerkasa` |
+
+> Semua password dapat diganti sendiri oleh pengguna melalui tombol **"Ganti Password"** di dalam dashboard masing-masing.
+
+---
+
+## Setup Lengkap (Langkah Demi Langkah)
+
+### Langkah 1 — Setup Supabase
+
+1. Buka [Supabase Dashboard](https://supabase.com/dashboard) dan pilih project Anda.
+2. Buka **Authentication → Providers → Email** → **Nonaktifkan "Confirm email"**.
+3. Buka **SQL Editor**, jalankan file berikut **secara berurutan**:
+
+   | Urutan | File | Fungsi |
+   |---|---|---|
+   | 1 | `supabase_setup.sql` | Buat tabel EPR, RLS, trigger, insert 24 data toko EPR |
+   | 2 | `seed_users.sql` | Buat 24 akun login EPR + perbaikan token NULL |
+   | 3 | `setup_epp.sql` | Buat tabel EPP, RLS, insert 127 data EPP |
+   | 4 | `seed_epp_local.sql` | Buat akun Admin + 4 akun EPP lokal Jawa Tengah |
+
+4. Jalankan query perbaikan token (jika muncul error `Database error querying schema`):
+   ```sql
+   update auth.users
+   set
+     confirmation_token = coalesce(confirmation_token, ''),
+     recovery_token = coalesce(recovery_token, ''),
+     email_change = coalesce(email_change, ''),
+     email_change_token_new = coalesce(email_change_token_new, '');
+   notify pgrst, 'reload schema';
+   ```
+
+5. Jalankan query untuk grant akses & tautkan akun ke data toko:
+   ```sql
+   grant usage on schema public to anon, authenticated;
+   grant all on table public.epr_stores to anon, authenticated;
+   grant all on table public.sales_records to anon, authenticated;
+   grant all on table public.epp_stores to anon, authenticated;
+   grant all on all sequences in schema public to anon, authenticated;
+
+   update public.epr_stores s
+   set user_id = u.id
+   from auth.users u
+   where lower(split_part(u.email, '@', 1)) = lower(s.username);
+
+   notify pgrst, 'reload schema';
+   ```
+
+---
+
+### Langkah 2 — Konfigurasi Environment
+
+Salin `.env.example` menjadi `.env` lalu isi dengan kredensial dari **Supabase → Project Settings → API**:
+
+```env
+VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbg...
+```
+
+---
+
+### Langkah 3 — Uji Coba Lokal
+
+```powershell
+npm install
 npm run dev
 ```
-Buka browser di alamat `http://localhost:5173`, lalu coba login menggunakan salah satu username toko (contoh: username `sinarjaya` dan password `Epr2026!SinarJaya`).
+
+Buka browser di **`http://localhost:5173`** dan login dengan salah satu akun di atas.
 
 ---
 
-## Langkah 5: Deploy ke GitHub & Cloudflare Pages
+### Langkah 4 — Deploy ke GitHub
 
-### A. Unggah ke GitHub
-1. Buat repository baru di [GitHub](https://github.com/new) (misal bernama: `epr-dashboard`).
-2. Di folder proyek ini, jalankan:
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: inisialisasi portal partner EPR FY26"
-   git branch -M main
-   git remote add origin https://github.com/USERNAME_GITHUB_ANDA/epr-dashboard.git
-   git push -u origin main
-   ```
+```powershell
+git remote add origin https://github.com/USERNAME_ANDA/epr-dashboard.git
+git branch -M main
+git push -u origin main
+```
 
-### B. Hubungkan ke Cloudflare Pages
-1. Masuk ke dashboard [Cloudflare](https://dash.cloudflare.com/) > **Workers & Pages** > **Pages** > **Connect to Git**.
-2. Pilih repositori `epr-dashboard`.
-3. Di pengaturan build:
-   - **Framework preset**: `Vite`
+---
+
+### Langkah 5 — Deploy ke Cloudflare Pages
+
+1. [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages → Pages → Connect to Git**
+2. Pilih repositori `epr-dashboard`
+3. Pengaturan build:
+   - **Framework**: `Vite`
    - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-4. Tambahkan **Environment variables**:
-   - `VITE_SUPABASE_URL` = *(URL Supabase Anda)*
-   - `VITE_SUPABASE_ANON_KEY` = *(Anon key Supabase Anda)*
-5. Klik **Save and Deploy**. Website Anda akan langsung aktif dengan domain gratis `*.pages.dev`.
+   - **Output directory**: `dist`
+4. Tambahkan **Environment Variables**:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+5. Klik **Save and Deploy** → website aktif di `https://epr-dashboard.pages.dev`
+
+---
+
+## Struktur File Proyek
+
+```
+epr-dashboard/
+├── .env.example                  ← Template variabel environment
+├── .gitignore                    ← .env dikecualikan dari git
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+├── package.json
+│
+├── supabase_setup.sql            ← [1] Setup tabel EPR + 24 data toko
+├── seed_users.sql                ← [2] Buat 24 akun login EPR
+├── setup_epp.sql                 ← [3] Setup tabel EPP + 127 data EPP
+├── seed_epp_local.sql            ← [4] Akun Admin + 4 EPP lokal
+├── register_users.py             ← Script Python alternatif (Service Role)
+│
+└── src/
+    ├── main.tsx
+    ├── App.tsx                   ← Routing peran: Admin / EPP / EPR
+    ├── index.css
+    ├── types.ts                  ← TypeScript interfaces
+    ├── vite-env.d.ts
+    ├── lib/
+    │   └── supabase.ts           ← Inisialisasi Supabase client
+    └── components/
+        ├── Login.tsx             ← Halaman login (username + password)
+        ├── Dashboard.tsx         ← Dashboard toko EPR
+        ├── AdminDashboard.tsx    ← Dashboard Admin (tab EPR + EPP)
+        ├── EppDashboard.tsx      ← Dashboard EPP (monitoring EPR)
+        └── ChangePasswordModal.tsx ← Modal ganti password mandiri
+```
+
+---
+
+## Keamanan (Row-Level Security)
+
+Seluruh keamanan data dikunci langsung di tingkat database PostgreSQL Supabase:
+
+- **Toko EPR**: Hanya bisa membaca & menulis data tokonya sendiri (`auth.uid() = user_id`)
+- **EPP**: Bisa membaca performa seluruh toko EPR, **tidak** menampilkan identitas EPP pemasok lain
+- **Admin**: Akses penuh ke semua tabel EPR dan EPP
+- **Tanpa RLS bypass**: Sekalipun seseorang mengutak-atik kode browser, database PostgreSQL tetap menolak
+
+---
+
+## File Excel Referensi (Desktop)
+
+| File | Keterangan |
+|---|---|
+| `EPR FY26.xlsx` | Sumber data master 24 toko EPR + target keuangan |
+| `EPP FY26.xlsx` | Sumber data master 127 EPP nasional |
+| `Akun_Toko_EPR_FY26.xlsx` | Rekap username & password 24 toko EPR |
+| `Akun_EPP_FY26.xlsx` | Rekap username & password 127 EPP |
