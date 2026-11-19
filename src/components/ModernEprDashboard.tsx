@@ -1783,7 +1783,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         </div>
       </header>
 
-      {(isEppUser || isEprUser) && (
+      {!isAdmin && (
         <aside className="disclaimer-ticker" aria-label="Disclaimer portal">
           <div className="disclaimer-ticker-icon" aria-hidden="true">
             <AlertTriangle className="w-4 h-4" />
