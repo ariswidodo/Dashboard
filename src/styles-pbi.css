@@ -1199,7 +1199,7 @@ td {
 
 /* Printable PDF Report */
 .pdf-report { display: none; }
-.pdf-report-inactive { display: none !important; }
+.pdf-report.pdf-report-inactive { display: none !important; }
 
 @media print {
   @page { size: A4 portrait; margin: 0; }
