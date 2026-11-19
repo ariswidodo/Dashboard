@@ -96,6 +96,8 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const [selectedEppMonth, setSelectedEppMonth] = useState<any | null>(null);
   const [selectedEppEpr, setSelectedEppEpr] = useState<any | null>(null);
   const [selectedEppMonthLabel, setSelectedEppMonthLabel] = useState('Okt 2026');
+  const [selectedEppStartMonthIndex, setSelectedEppStartMonthIndex] = useState(6);
+  const [selectedEppEndMonthIndex, setSelectedEppEndMonthIndex] = useState(8);
   const [pdfReportType, setPdfReportType] = useState<'overview' | 'epp-upload'>('overview');
 
   // Theme: 'light' | 'dark'
@@ -1258,15 +1260,9 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   }, [data, eppCityMap, eprCityMap]);
 
   const eppUploadAudit = useMemo(() => {
-    const monthIndexes = period === 'h1'
-      ? [0, 1, 2, 3, 4, 5]
-      : period === 'h2'
-        ? [6, 7, 8, 9, 10, 11]
-        : period === 'q3'
-          ? [6, 7, 8]
-          : period === 'q4'
-            ? [9, 10, 11]
-            : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    // Data Upload Epson Hub memakai rentang bulan manual, sehingga pilihan
+    // bulan tidak dibatasi oleh slicer Overview.
+    const monthIndexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     const monthLabels = ['Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar'];
     const monthBounds = [
       ['2026-04-01', '2026-04-30'], ['2026-05-01', '2026-05-31'], ['2026-06-01', '2026-06-30'],
@@ -1338,6 +1334,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         byEpr.set(eprCode, current);
       });
       return {
+        monthIndex,
         label: `${monthLabels[monthIndex]} ${monthIndex < 9 ? '2026' : '2027'}`,
         ...totals,
         total: categories.reduce((sum, category) => sum + totals[category], 0),
@@ -1357,10 +1354,15 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     };
   }, [data, eppContributionRows, ownEppCode, ownEppNameTokens, period]);
 
-  const selectedEppAuditRow = useMemo(
-    () => eppUploadAudit.rows.find((row: any) => row.label === selectedEppMonthLabel) || eppUploadAudit.rows[0] || null,
-    [eppUploadAudit, selectedEppMonthLabel],
-  );
+  const selectedEppRangeRows = useMemo(() => {
+    const start = Math.min(selectedEppStartMonthIndex, selectedEppEndMonthIndex);
+    const end = Math.max(selectedEppStartMonthIndex, selectedEppEndMonthIndex);
+    return eppUploadAudit.rows.filter((row: any) => row.monthIndex >= start && row.monthIndex <= end);
+  }, [eppUploadAudit, selectedEppStartMonthIndex, selectedEppEndMonthIndex]);
+
+  const selectedEppRangeLabel = selectedEppRangeRows.length > 1
+    ? `${selectedEppRangeRows[0].label} – ${selectedEppRangeRows[selectedEppRangeRows.length - 1].label}`
+    : selectedEppRangeRows[0]?.label || 'Belum ada periode';
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -1879,7 +1881,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                   <div className="card-head">
                     <div>
                       <h2>Data Upload Epson Hub</h2>
-                      <p className="card-sub">Apakah Sesuai dengan data yang di Upload di Epson Hub</p>
+                      <p className="card-sub">Rincian penjualan EPP ke EPR berdasarkan data upload Epson Hub</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -1891,24 +1893,41 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                         <Printer className="w-3.5 h-3.5" />
                         <span>Share to PDF</span>
                       </button>
-                      <span className={`badge ${eppUploadAudit.status === 'match' ? 'badge-emerald' : eppUploadAudit.status === 'mismatch' ? 'badge-rose' : 'badge-amber'}`}>
-                        {eppUploadAudit.status === 'match' ? 'Sesuai' : eppUploadAudit.status === 'mismatch' ? 'Perlu Diperiksa' : 'Belum Ada Rincian'}
-                      </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 mt-4 mb-3">
-                    <label htmlFor="epp-audit-month" className="text-xs font-semibold text-[var(--text-2)]">Pilih Bulan</label>
+                    <label htmlFor="epp-audit-start-month" className="text-xs font-semibold text-[var(--text-2)]">Dari Bulan</label>
                     <select
-                      id="epp-audit-month"
-                      value={selectedEppAuditRow?.label || ''}
-                      onChange={(event) => setSelectedEppMonthLabel(event.target.value)}
+                      id="epp-audit-start-month"
+                      value={selectedEppStartMonthIndex}
+                      onChange={(event) => {
+                        const next = Number(event.target.value);
+                        setSelectedEppStartMonthIndex(next);
+                        if (next > selectedEppEndMonthIndex) setSelectedEppEndMonthIndex(next);
+                      }}
                       className="text-xs font-semibold bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[var(--text)]"
                     >
-                      {eppUploadAudit.rows.map((row) => (
-                        <option key={row.label} value={row.label}>{row.label}</option>
+                      {eppUploadAudit.rows.map((row: any) => (
+                        <option key={`start-${row.monthIndex}`} value={row.monthIndex}>{row.label}</option>
                       ))}
                     </select>
+                    <label htmlFor="epp-audit-end-month" className="text-xs font-semibold text-[var(--text-2)]">Sampai Bulan</label>
+                    <select
+                      id="epp-audit-end-month"
+                      value={selectedEppEndMonthIndex}
+                      onChange={(event) => {
+                        const next = Number(event.target.value);
+                        setSelectedEppEndMonthIndex(next);
+                        if (next < selectedEppStartMonthIndex) setSelectedEppStartMonthIndex(next);
+                      }}
+                      className="text-xs font-semibold bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[var(--text)]"
+                    >
+                      {eppUploadAudit.rows.map((row: any) => (
+                        <option key={`end-${row.monthIndex}`} value={row.monthIndex}>{row.label}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-[var(--text-3)]">{selectedEppRangeLabel}</span>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -1924,24 +1943,24 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedEppAuditRow && (
+                        {selectedEppRangeRows.map((row: any) => (
                           <tr
-                            key={selectedEppAuditRow.label}
+                            key={row.label}
                             onClick={() => {
-                              setSelectedEppMonthLabel(selectedEppAuditRow.label);
-                              setSelectedEppMonth(selectedEppAuditRow);
+                              setSelectedEppMonthLabel(row.label);
+                              setSelectedEppMonth(row);
                             }}
                             style={{ cursor: 'pointer' }}
                             title="Klik untuk melihat penjualan ke EPR"
                           >
-                            <td className="font-semibold">{selectedEppAuditRow.label}</td>
-                            <td className="num mono">{fmtRp(selectedEppAuditRow.Consumer)}</td>
-                            <td className="num mono">{fmtRp(selectedEppAuditRow.Consumables)}</td>
-                            <td className="num mono">{fmtRp(selectedEppAuditRow.Scanner)}</td>
-                            <td className="num mono">{fmtRp(selectedEppAuditRow.Dotmatrix)}</td>
-                            <td className="num mono font-bold">{fmtRp(selectedEppAuditRow.total)}</td>
+                            <td className="font-semibold">{row.label}</td>
+                            <td className="num mono">{fmtRp(row.Consumer)}</td>
+                            <td className="num mono">{fmtRp(row.Consumables)}</td>
+                            <td className="num mono">{fmtRp(row.Scanner)}</td>
+                            <td className="num mono">{fmtRp(row.Dotmatrix)}</td>
+                            <td className="num mono font-bold">{fmtRp(row.total)}</td>
                           </tr>
-                        )}
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -3462,7 +3481,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       <div className="pdf-head">
         <div>
           <h1>Penjualan EPP ke EPR</h1>
-          <div className="pdf-meta">Data Upload Epson Hub · Periode {period.toUpperCase()} · {new Date().toLocaleDateString('id-ID')}</div>
+          <div className="pdf-meta">Data Upload Epson Hub · Periode {selectedEppRangeLabel} · {new Date().toLocaleDateString('id-ID')}</div>
         </div>
         <div className="pdf-meta">Epson FY26</div>
       </div>
@@ -3483,7 +3502,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             </tr>
           </thead>
           <tbody>
-            {eppUploadAudit.rows.flatMap((month: any) => (month.eprDetails || []).map((detail: any) => (
+            {selectedEppRangeRows.flatMap((month: any) => (month.eprDetails || []).map((detail: any) => (
               <tr key={`${month.label}-${detail.code}`}>
                 <td>{month.label}</td>
                 <td className="mono">{detail.code}</td>
@@ -3503,7 +3522,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       </div>
 
       <div className="pdf-foot">
-        <span>{eppUploadAudit.rows.reduce((count: number, month: any) => count + (month.eprDetails?.length || 0), 0)} rincian EPR</span>
+        <span>{selectedEppRangeRows.reduce((count: number, month: any) => count + (month.eprDetails?.length || 0), 0)} rincian EPR</span>
         <span className="pdf-credit">EPR Achievement Dashboard</span>
         <span>Data penjualan terverifikasi</span>
       </div>
