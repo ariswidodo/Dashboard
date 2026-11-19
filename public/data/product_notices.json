@@ -1,0 +1,51 @@
+[
+  {
+    "id": "demo-discontinued-l3250",
+    "type": "DISCONTINUED",
+    "title": "6 Produk Epson Discontinued",
+    "message": "Berdasarkan surat komunikasi Epson No. 00055, enam model berikut didiskontinu dan tidak dipasarkan kembali setelah periode yang ditentukan.",
+    "effective_date": "2026-10-31",
+    "discontinued_items": [
+      {
+        "material_code": "C11C168504",
+        "model": "L3211",
+        "replacement_code": "C11CL61518",
+        "replacement_model": "L3311"
+      },
+      {
+        "material_code": "C11C167506",
+        "model": "L3251",
+        "replacement_code": "C11CL62523",
+        "replacement_model": "L3351"
+      },
+      {
+        "material_code": "C11C165504",
+        "model": "L5290",
+        "replacement_code": "C11CL59511",
+        "replacement_model": "L5391"
+      },
+      {
+        "material_code": "C11C168502",
+        "model": "L3216",
+        "replacement_code": "C11CL61502",
+        "replacement_model": "L3316"
+      },
+      {
+        "material_code": "C11C167504",
+        "model": "L3256",
+        "replacement_code": "C11CL62504",
+        "replacement_model": "L3356"
+      },
+      {
+        "material_code": "C11CK59507",
+        "model": "L3556",
+        "replacement_code": "C11CL59503",
+        "replacement_model": "L5396"
+      }
+    ],
+    "audience": ["epp", "epr"],
+    "document_url": "/documents/surat-komunikasi-epson-00055-discontinuation-l32xx-l52xx.pdf",
+    "priority": "high",
+    "is_demo": false
+  }
+]

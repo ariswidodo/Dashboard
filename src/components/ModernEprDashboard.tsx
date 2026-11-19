@@ -28,7 +28,9 @@ import {
   FileText,
   Upload,
   Database,
-  RefreshCw
+  RefreshCw,
+  Bell,
+  ExternalLink
 } from 'lucide-react';
 
 interface Props {
@@ -37,6 +39,26 @@ interface Props {
   userEprCode?: string; // e.g. "EPR-0038" – from app_metadata, used for exact EPR store isolation
   onLogout: () => void;
 }
+
+type ProductNotice = {
+  id: string;
+  type: 'DISCONTINUED' | 'END_OF_LIFE' | 'REPLACEMENT' | 'PROGRAM_UPDATE' | string;
+  title: string;
+  message: string;
+  effective_date?: string;
+  material_codes?: string[];
+  discontinued_items?: Array<{
+    material_code: string;
+    model: string;
+    replacement_code: string;
+    replacement_model: string;
+  }>;
+  replacement?: string;
+  audience?: Array<'admin' | 'epp' | 'epr'>;
+  document_url?: string;
+  priority?: 'high' | 'medium' | 'low' | string;
+  is_demo?: boolean;
+};
 
 const CUSTOM_DATA_KEY = 'epr_custom_data_v2';
 const TRANSACTION_LEDGER_KEY = 'epr_verified_transaction_keys_v3';
@@ -66,6 +88,14 @@ const readTransactionLedger = (): string[] => {
   } catch {
     return [];
   }
+};
+
+const formatNoticeDate = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userEprCode = '', onLogout }) => {
@@ -102,6 +132,8 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
   // Theme: 'light' | 'dark'
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
+  const [productNotices, setProductNotices] = useState<ProductNotice[]>([]);
+  const [isNoticeOpen, setIsNoticeOpen] = useState(false);
 
   // Password Modal
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -140,6 +172,21 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     fetchData();
 
     return () => systemTheme.removeEventListener?.('change', handleThemeChange);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/data/product_notices.json')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((payload: unknown) => {
+        if (!cancelled && Array.isArray(payload)) setProductNotices(payload as ProductNotice[]);
+      })
+      .catch((noticeError) => console.warn('Gagal memuat product notices', noticeError));
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadSharedDashboardData = async (baseData: EprFullData): Promise<EprFullData> => {
@@ -574,6 +621,11 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const isEprUser = userRole === 'epr';
   const isEppUser = userRole === 'epp';
   const isAdmin = userRole === 'admin';
+
+  const visibleProductNotices = useMemo(
+    () => productNotices.filter((notice) => !notice.audience?.length || notice.audience.includes(userRole)),
+    [productNotices, userRole]
+  );
 
   const eppAliasMap: Record<string, string> = {
     computa: 'EPP-0050',
@@ -1761,6 +1813,23 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             <KeyRound className="w-4 h-4" />
             <span>Ganti Password</span>
           </button>
+
+          {!isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsNoticeOpen(true)}
+              className="notice-trigger"
+              title="Buka pemberitahuan produk dan komunikasi resmi"
+              aria-label={`Pemberitahuan produk, ${visibleProductNotices.length} pemberitahuan`}
+              aria-expanded={isNoticeOpen}
+            >
+              <Bell className="w-4 h-4" />
+              <span className="notice-trigger-label">Notifikasi</span>
+              {visibleProductNotices.length > 0 && (
+                <span className="notice-count" aria-hidden="true">{visibleProductNotices.length}</span>
+              )}
+            </button>
+          )}
 
           <button
             type="button"
@@ -3368,6 +3437,102 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
+
+      {!isAdmin && isNoticeOpen && (
+        <>
+          <div className="drawer-backdrop show" onClick={() => setIsNoticeOpen(false)} />
+          <aside className="drawer open notice-drawer" aria-label="Pemberitahuan Produk">
+            <div className="drawer-head notice-drawer-head">
+              <div>
+                <span className="badge badge-indigo">PARTNER NOTICE</span>
+                <h2>Pemberitahuan Produk</h2>
+                <p className="notice-drawer-subtitle">Informasi produk dan komunikasi resmi untuk partner.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNoticeOpen(false)}
+                className="btn btn-icon"
+                title="Tutup pemberitahuan"
+                aria-label="Tutup pemberitahuan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="notice-drawer-body">
+              {visibleProductNotices.length === 0 ? (
+                <div className="notice-empty-state">
+                  <Bell className="w-5 h-5" />
+                  <strong>Belum ada pemberitahuan</strong>
+                  <span>Komunikasi produk terbaru akan muncul di sini.</span>
+                </div>
+              ) : (
+                visibleProductNotices.map((notice) => (
+                  <article key={notice.id} className={`notice-card notice-card-${notice.priority || 'medium'}`}>
+                    <div className="notice-card-topline">
+                      <div className="notice-card-label-row">
+                        <span className={`notice-type notice-type-${notice.type.toLowerCase().replace(/_/g, '-')}`}>
+                          {notice.type.replace(/_/g, ' ')}
+                        </span>
+                        {notice.is_demo && <span className="notice-demo-label">CONTOH</span>}
+                      </div>
+                      {notice.effective_date && (
+                        <span className="notice-effective-date">Efektif {formatNoticeDate(notice.effective_date)}</span>
+                      )}
+                    </div>
+                    <h3>{notice.title}</h3>
+                    <p className="notice-card-message">{notice.message}</p>
+                    {notice.discontinued_items && notice.discontinued_items.length > 0 ? (
+                      <div className="notice-product-list">
+                        <div className="notice-product-list-head">
+                          <span>Produk discontinue</span>
+                          <span>Model pengganti</span>
+                        </div>
+                        {notice.discontinued_items.map((item) => (
+                          <div key={item.material_code} className="notice-product-row">
+                            <div>
+                              <strong>{item.model}</strong>
+                              <span>{item.material_code}</span>
+                            </div>
+                            <div>
+                              <strong>{item.replacement_model}</strong>
+                              <span>{item.replacement_code}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : notice.material_codes && notice.material_codes.length > 0 && (
+                      <div className="notice-detail-row">
+                        <span>Material Code</span>
+                        <strong>{notice.material_codes.join(', ')}</strong>
+                      </div>
+                    )}
+                    {notice.replacement && (
+                      <div className="notice-detail-row">
+                        <span>Pengganti</span>
+                        <strong>{notice.replacement}</strong>
+                      </div>
+                    )}
+                    {notice.document_url ? (
+                      <a
+                        href={notice.document_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="notice-document-link"
+                      >
+                        <span>Lihat Surat Komunikasi</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <span className="notice-document-missing">Surat komunikasi belum ditautkan</span>
+                    )}
+                  </article>
+                ))
               )}
             </div>
           </aside>
