@@ -46,8 +46,14 @@ begin
         acc.email,
         crypt(acc.raw_password, gen_salt('bf')),
         now(),
-        '{"provider":"email","providers":["email"]}'::jsonb,
-        jsonb_build_object('role', 'epp', 'username', acc.uname, 'epp_code', acc.epp_code),
+        jsonb_build_object(
+          'provider', 'email',
+          'providers', jsonb_build_array('email'),
+          'role', 'epp',
+          'username', acc.uname,
+          'epp_code', acc.epp_code
+        ),
+        jsonb_build_object('username', acc.uname, 'epp_code', acc.epp_code),
         now(), now(), '', '', '', ''
       );
 
@@ -76,6 +82,19 @@ begin
   end loop;
 end $$;
 
+-- Pastikan akun lama juga memiliki role authorization yang aman.
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
+  'role', 'epp',
+  'username', split_part(lower(email), '@', 1)
+)
+where lower(email) in (
+  'computa@epp26.id',
+  'topdistribusi@epp26.id',
+  'compumart@epp26.id',
+  'rakaperkasa@epp26.id'
+);
+
 -- 3. Buat akun Admin (jika belum ada)
 do $$
 declare
@@ -95,8 +114,13 @@ begin
       'admin@epr26.id',
       crypt('AdminEpr2026!', gen_salt('bf')),
       now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{"role":"admin","username":"admin"}'::jsonb,
+      jsonb_build_object(
+        'provider', 'email',
+        'providers', jsonb_build_array('email'),
+        'role', 'admin',
+        'username', 'admin'
+      ),
+      jsonb_build_object('username', 'admin'),
       now(), now(), '', '', '', ''
     );
 
@@ -117,6 +141,11 @@ begin
     raise notice 'Admin already exists';
   end if;
 end $$;
+
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+  || jsonb_build_object('role', 'admin', 'username', 'admin')
+where lower(email) = 'admin@epr26.id';
 
 -- 4. Verifikasi
 select epp_code, epp_name, city, username, 

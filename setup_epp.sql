@@ -24,8 +24,7 @@ drop policy if exists "EPP view policy" on public.epp_stores;
 create policy "EPP view policy"
 on public.epp_stores for select
 using (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'epp')
+  (auth.jwt() -> 'app_metadata' ->> 'role') in ('admin', 'epp')
   or auth.uid() = user_id
   or lower(username) = lower(split_part(auth.jwt() ->> 'email', '@', 1))
 );
@@ -35,8 +34,7 @@ drop policy if exists "Store view own profile" on public.epr_stores;
 create policy "Store view own profile"
 on public.epr_stores for select
 using (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'epp')
+  (auth.jwt() -> 'app_metadata' ->> 'role') in ('admin', 'epp')
   or auth.uid() = user_id 
   or lower(username) = lower(split_part(auth.jwt() ->> 'email', '@', 1))
 );
@@ -46,13 +44,11 @@ drop policy if exists "Store sales access" on public.sales_records;
 create policy "Store sales access"
 on public.sales_records for all
 using (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'epp')
+  (auth.jwt() -> 'app_metadata' ->> 'role') in ('admin', 'epp')
   or store_id in (select id from public.epr_stores where user_id = auth.uid())
 )
 with check (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   or store_id in (select id from public.epr_stores where user_id = auth.uid())
 );
 

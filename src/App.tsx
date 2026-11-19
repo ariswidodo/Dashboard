@@ -136,7 +136,7 @@ export function App() {
     const username = email.split('@')[0];
 
     // 1. Cek Admin
-    if (email === 'admin@epr26.id' || user.user_metadata?.role === 'admin') {
+    if (email === 'admin@epr26.id' || user.app_metadata?.role === 'admin') {
       setUserRole('admin');
       setLoading(false);
       return;
@@ -194,8 +194,8 @@ export function App() {
   }
 
   // Tampilkan Modern Power BI Dashboard yang adaptif terhadap peran pengguna (Admin / EPP / EPR)
-  // Ambil epr_code dari user_metadata (diisi saat akun dibuat via SQL)
-  const userEprCode: string = session.user.user_metadata?.epr_code || '';
+  // Ambil epr_code dari app_metadata (diisi oleh SQL admin, bukan oleh user)
+  const userEprCode: string = session.user.app_metadata?.epr_code || '';
 
   return (
     <ModernEprDashboard 

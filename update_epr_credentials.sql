@@ -57,6 +57,11 @@ begin
       update auth.users
       set
         encrypted_password = crypt(acc.raw_password, gen_salt('bf')),
+        raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
+          'role', 'epr',
+          'username', acc.username,
+          'epr_code', acc.code
+        ),
         raw_user_meta_data = jsonb_build_object('username', acc.username, 'epr_code', acc.code),
         confirmation_token = coalesce(confirmation_token, ''),
         recovery_token = coalesce(recovery_token, ''),
@@ -96,7 +101,13 @@ begin
         acc.email,
         crypt(acc.raw_password, gen_salt('bf')),
         now(),
-        '{"provider":"email","providers":["email"]}'::jsonb,
+        jsonb_build_object(
+          'provider', 'email',
+          'providers', jsonb_build_array('email'),
+          'role', 'epr',
+          'username', acc.username,
+          'epr_code', acc.code
+        ),
         jsonb_build_object('username', acc.username, 'epr_code', acc.code),
         now(), now(), '', '', '', ''
       );

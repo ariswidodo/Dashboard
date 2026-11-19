@@ -11,6 +11,7 @@
 | **Referensi dashboard** | [ariswidodo.github.io/EPR](https://ariswidodo.github.io/EPR/) |
 | **Data Master & Baseline** | `public/data/epr_data.json`, `epr_master.csv`, `epp_master.csv` |
 | **Data Program Berjalan** | `public/data/program_rules.json`, `program_participants_current.json`, `booster_consumables_sku.csv` |
+| **Master SKU** | `public/data/sku.xlsx` (Material Code, Desc, Category Product, Product Rebate) |
 | **Database Harga SKU** | `public/data/sku_price_database.json` |
 | **Supabase project** | `nhuaoaujwfnpymhfgnbf.supabase.co` |
 
@@ -80,8 +81,9 @@ epr-dashboard/
 ├── seed_epp_local.sql                ← [4] Akun Admin + 4 EPP lokal Jawa Tengah
 ├── update_epr_credentials.sql        ← [5] Update username & password 24 EPR
 ├── lockdown_readonly_rls.sql         ← [6] Kunci strict READ-ONLY EPR & EPP
-├── patch_user_metadata.sql           ← [7] Patch epr_code ke JWT user_metadata
+├── patch_user_metadata.sql           ← [7] Patch role/epr_code ke JWT app_metadata
 ├── shared_dashboard_data.sql         ← [8] Tabel ledger transaksi & kontribusi bersama + grants
+├── migrate_rls_to_app_metadata.sql   ← [9] Migrasi policy RLS ke app_metadata
 │
 ├── public/
 │   └── data/
@@ -89,6 +91,7 @@ epr-dashboard/
 │       ├── program_rules.json        ← Skema reward Booster Up
 │       ├── program_participants_current.json ← Peserta program berjalan saat ini
 │       ├── booster_consumables_sku.csv ← SKU Consumables yang dihitung
+│       ├── sku.xlsx                   ← Master SKU resmi untuk validasi & perhitungan
 │       ├── sku_price_database.json    ← Harga rekomendasi per Material Code
 │       ├── epr_master.csv             ← Master EPR dan kota
 │       └── epp_master.csv             ← Master EPP dan kota
@@ -200,7 +203,9 @@ Dashboard Admin dilengkapi tombol **"Upload Data EPR"** di bagian atas (topbar) 
 
 2. **Harga dan Verifikasi**:
    - **Validasi Master EPR**: Hanya transaksi dari EPR resmi yang diterima. Transaksi di luar master ditolak dengan status `LUAR DATABASE EPR`.
+   - **Validasi Master SKU**: Material Code wajib ada di `public/data/sku.xlsx`. SKU di luar master tidak masuk pencapaian dan disimpan sebagai baris `Tidak dihitung` dengan alasan `LUAR DATABASE SKU`.
    - **Validasi kategori**: `SCN` menjadi Scanner, `CISS/SOHO` menjadi Consumer, `SIDM` menjadi Dotmatrix, dan kategori `*Cons` menjadi Consumables.
+   - **Kategori di luar program**: SKU yang ada di master tetapi kategorinya tidak termasuk kategori pencapaian (misalnya Projector/Entry) disimpan sebagai `Tidak dihitung` dengan alasan `KATEGORI TIDAK DIHITUNG`.
    - **Harga V1/V2**: sistem membandingkan harga jual EPP dengan `sku_price_database.json` berdasarkan Material Code, memakai harga yang lebih rendah, mengalikan Qty, lalu membagi 1,11 untuk mengeluarkan PPN.
    - **Tanggal invoice**: tanggal kalender invoice dipertahankan tanpa pergeseran zona waktu, termasuk tanggal 1 pada awal bulan.
 
@@ -219,8 +224,18 @@ Dashboard Admin dilengkapi tombol **"Upload Data EPR"** di bagian atas (topbar) 
 5. **Penyimpanan Live & Tombol Reset**:
    - Hasil upload disimpan sementara di `localStorage` Admin (`epr_custom_data_v2`) dan disinkronkan ke Supabase.
    - `sales_records` menyimpan agregat bulanan, `epp_contributions` menyimpan kontribusi EPP ke EPR, dan `program_transaction_items` menyimpan detail ledger.
+   - Setiap detail ledger memiliki status `Terhitung` atau `Tidak dihitung`, alasan penolakan, kategori, SKU, Qty, harga, tanggal invoice, EPP, EPR, dan program.
    - Tombol **"Kembalikan ke Data Awal"** menghapus data pembelian bersama dan mengembalikan baseline master/target ke kondisi nol.
    - Setelah reset, upload ulang file sumber satu kali untuk membangun ledger baru.
+
+### Download Excel transaksi EPP
+
+Pada akun EPP, buka tab **Overview** lalu bagian **Download Excel untuk rincian transaksi**. Pilih rentang bulan dan unduh file Excel. File tersebut berisi dua sheet:
+
+- **Ringkasan**: hanya pembelian yang valid dan masuk pencapaian, dirangkum per bulan, EPR, dan kategori.
+- **Detail Penjualan**: seluruh baris upload EPP pada rentang bulan yang dipilih, termasuk baris yang tidak dihitung. Kolom status menunjukkan `Terhitung` atau `Tidak dihitung`, sedangkan kolom alasan menjelaskan `LUAR DATABASE SKU`, `KATEGORI TIDAK DIHITUNG`, atau alasan verifikasi lainnya.
+
+Dengan demikian, EPP dapat membedakan transaksi yang berhasil dihitung dari transaksi yang di-upload tetapi tidak memenuhi master SKU atau ketentuan program.
 
 ### Alur upload yang direkomendasikan
 
@@ -270,8 +285,11 @@ Tab **Program Berjalan** memantau pencapaian program periode 1 Okt – 31 Des 20
    | 4 | `seed_epp_local.sql` | Akun Admin + 4 akun EPP lokal Jawa Tengah |
    | 5 | `update_epr_credentials.sql` | Update username & password 24 EPR |
    | 6 | `lockdown_readonly_rls.sql` | Kunci strict READ-ONLY EPR & EPP di level database |
-   | 7 | `patch_user_metadata.sql` | Set `epr_code` ke `raw_user_meta_data` JWT semua akun EPR |
-   | 8 | `shared_dashboard_data.sql` | Buat tabel data bersama, ledger transaksi, grants, dan izin sinkronisasi |
+   | 7 | `patch_user_metadata.sql` | Set `role` dan `epr_code` ke `raw_app_meta_data` JWT akun EPR |
+   | 8 | `shared_dashboard_data.sql` | Buat tabel data bersama, ledger transaksi, kolom status validasi, grants, dan izin sinkronisasi |
+   | 9 | `migrate_rls_to_app_metadata.sql` | Migrasi policy RLS agar tidak menggunakan `user_metadata` |
+
+> **Penting setelah pembaruan validasi SKU:** jalankan ulang `shared_dashboard_data.sql` agar tabel `program_transaction_items` memiliki kolom `counted`, `upload_status`, dan `reject_reason`. Script menggunakan `ADD COLUMN IF NOT EXISTS`, sehingga aman dijalankan pada tabel yang sudah ada.
 
 4. *(Opsional — jika muncul error `Database error querying schema`)*:
    ```sql

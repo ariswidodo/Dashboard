@@ -23,12 +23,10 @@ drop policy if exists "EPP view epr_stores" on public.epr_stores;
 create policy "Admin full access epr_stores"
 on public.epr_stores for all
 using (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 )
 with check (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 );
 
 -- Policy 1B: TOKO EPR HANYA BISA BACA (SELECT) profil tokonya sendiri
@@ -43,8 +41,7 @@ using (
 create policy "EPP view epr_stores"
 on public.epr_stores for select
 using (
-  (auth.jwt() -> 'user_metadata' ->> 'role') = 'epp'
-  or auth.jwt() ->> 'email' like '%@epp26.id'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'epp'
 );
 
 -- --------------------------------------------------------------
@@ -62,12 +59,10 @@ drop policy if exists "EPP view all sales" on public.sales_records;
 create policy "Admin full access sales_records"
 on public.sales_records for all
 using (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 )
 with check (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 );
 
 -- Policy 2B: TOKO EPR HANYA BISA BACA (SELECT) data realisasi penjualannya sendiri
@@ -85,8 +80,7 @@ using (
 create policy "EPP view all sales"
 on public.sales_records for select
 using (
-  (auth.jwt() -> 'user_metadata' ->> 'role') = 'epp'
-  or auth.jwt() ->> 'email' like '%@epp26.id'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'epp'
 );
 
 -- --------------------------------------------------------------
@@ -103,12 +97,10 @@ drop policy if exists "EPP view own profile" on public.epp_stores;
 create policy "Admin full access epp_stores"
 on public.epp_stores for all
 using (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 )
 with check (
-  auth.jwt() ->> 'email' = 'admin@epr26.id'
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
 );
 
 -- Policy 3B: EPP HANYA BISA BACA (SELECT) profilnya sendiri
@@ -117,8 +109,7 @@ on public.epp_stores for select
 using (
   auth.uid() = user_id
   or lower(username) = lower(split_part(auth.jwt() ->> 'email', '@', 1))
-  or (auth.jwt() -> 'user_metadata' ->> 'role') = 'epp'
-  or auth.jwt() ->> 'email' like '%@epp26.id'
+  or (auth.jwt() -> 'app_metadata' ->> 'role') = 'epp'
 );
 
 -- Refresh PostgREST schema cache

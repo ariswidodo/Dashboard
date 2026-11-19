@@ -67,7 +67,13 @@ begin
         acc.email,
         crypt(acc.raw_password, gen_salt('bf')),
         now(),
-        '{"provider":"email","providers":["email"]}'::jsonb,
+        jsonb_build_object(
+          'provider', 'email',
+          'providers', jsonb_build_array('email'),
+          'role', 'epr',
+          'username', acc.username,
+          'epr_code', acc.code
+        ),
         jsonb_build_object('username', acc.username, 'epr_code', acc.code),
         now(),
         now(),
@@ -104,6 +110,15 @@ begin
       where username = acc.username;
 
     else
+      -- Jika user sudah ada, pastikan role authorization berada di app_metadata
+      update auth.users
+      set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
+        'role', 'epr',
+        'username', acc.username,
+        'epr_code', acc.code
+      )
+      where email = acc.email;
+
       -- Jika user sudah ada, pastikan tertaut ke epr_stores
       update public.epr_stores
       set user_id = (select id from auth.users where email = acc.email limit 1)

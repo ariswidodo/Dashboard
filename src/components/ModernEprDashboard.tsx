@@ -34,7 +34,7 @@ import {
 interface Props {
   userEmail: string;
   userRole: 'admin' | 'epp' | 'epr';
-  userEprCode?: string; // e.g. "EPR-0038" – from user_metadata, used for exact EPR store isolation
+  userEprCode?: string; // e.g. "EPR-0038" – from app_metadata, used for exact EPR store isolation
   onLogout: () => void;
 }
 
@@ -593,7 +593,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   }, [cleanUsername]);
 
   // For EPR users: resolve the exact partner record for subtitle / scoped views.
-  // Uses userEprCode (from user_metadata) with alias-table fallback.
+  // Uses userEprCode (from app_metadata) with alias-table fallback.
   const ownPartner = useMemo(() => {
     if (!isEprUser || !data?.partners) return null;
     if (userEprCode) return data.partners.find(p => p.code === userEprCode) || null;
@@ -624,7 +624,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     return data.partners.filter((p) => {
       // If user is EPR, strictly show only their own store via epr_code from metadata
       if (isEprUser) {
-        // Primary: exact match via epr_code from user_metadata (most reliable)
+        // Primary: exact match via epr_code from app_metadata (most reliable)
         if (userEprCode) return p.code === userEprCode;
         // Fallback: alias table (for local dev / no metadata)
         const u = cleanUsername;
@@ -1782,6 +1782,21 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           </button>
         </div>
       </header>
+
+      {(isEppUser || isEprUser) && (
+        <aside className="disclaimer-ticker" aria-label="Disclaimer portal">
+          <div className="disclaimer-ticker-icon" aria-hidden="true">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div className="disclaimer-ticker-viewport">
+            <div className="disclaimer-ticker-track">
+              <span>Disclaimer: Angka dan perhitungan di Portal ini bersifat estimasi awal dan bukan merupakan perhitungan resmi.</span>
+              <span aria-hidden="true">Disclaimer: Angka dan perhitungan di Portal ini bersifat estimasi awal dan bukan merupakan perhitungan resmi.</span>
+            </div>
+          </div>
+          <span className="disclaimer-ticker-status" aria-hidden="true" />
+        </aside>
+      )}
 
       {/* Power BI Page Navigation */}
       <nav className="pbi-nav" role="tablist" aria-label="Halaman Dashboard">

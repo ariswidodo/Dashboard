@@ -69,8 +69,8 @@ alter table public.program_transaction_items enable row level security;
 drop policy if exists "Shared admin sales full access" on public.sales_records;
 create policy "Shared admin sales full access"
 on public.sales_records for all
-using (auth.jwt() ->> 'email' = 'admin@epr26.id' or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
-with check (auth.jwt() ->> 'email' = 'admin@epr26.id' or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin');
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 drop policy if exists "Shared EPR sales read own" on public.sales_records;
 create policy "Shared EPR sales read own"
@@ -84,20 +84,19 @@ using (store_id in (
 drop policy if exists "Shared EPP sales read all" on public.sales_records;
 create policy "Shared EPP sales read all"
 on public.sales_records for select
-using ((auth.jwt() -> 'user_metadata' ->> 'role') = 'epp' or auth.jwt() ->> 'email' like '%@epp26.id');
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'epp');
 
 drop policy if exists "Shared admin EPP contribution full access" on public.epp_contributions;
 create policy "Shared admin EPP contribution full access"
 on public.epp_contributions for all
-using (auth.jwt() ->> 'email' = 'admin@epr26.id' or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
-with check (auth.jwt() ->> 'email' = 'admin@epr26.id' or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin');
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 drop policy if exists "Shared EPP contribution read" on public.epp_contributions;
 create policy "Shared EPP contribution read"
 on public.epp_contributions for select
 using (
-  (auth.jwt() -> 'user_metadata' ->> 'role') = 'epp'
-  or auth.jwt() ->> 'email' like '%@epp26.id'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'epp'
   or epr_code in (
     select epr_code from public.epr_stores
     where user_id = auth.uid()
@@ -108,15 +107,14 @@ using (
 drop policy if exists "Shared admin program items full access" on public.program_transaction_items;
 create policy "Shared admin program items full access"
 on public.program_transaction_items for all
-using (auth.jwt() ->> 'email' = 'admin@epr26.id' or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
-with check (auth.jwt() ->> 'email' = 'admin@epr26.id' or (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin');
+using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 drop policy if exists "Shared program items read" on public.program_transaction_items;
 create policy "Shared program items read"
 on public.program_transaction_items for select
 using (
-  (auth.jwt() -> 'user_metadata' ->> 'role') = 'epp'
-  or auth.jwt() ->> 'email' like '%@epp26.id'
+  (auth.jwt() -> 'app_metadata' ->> 'role') = 'epp'
   or epr_code in (
     select epr_code from public.epr_stores
     where user_id = auth.uid()
