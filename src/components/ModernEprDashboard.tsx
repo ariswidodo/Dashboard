@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { PartnerData, EprFullData, ProgramPartner, EppSource } from '../types-pbi';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import * as XLSX from 'xlsx';
+import { supabase } from '../lib/supabase';
 import { processUploadedWorkbook, VerificationStats } from '../lib/epr_engine';
 import { 
   Building2, 
@@ -24,7 +25,6 @@ import {
   Sun,
   Moon,
   BarChart2,
-  Layers,
   FileText,
   Upload,
   Database,
@@ -38,8 +38,41 @@ interface Props {
   onLogout: () => void;
 }
 
+const CUSTOM_DATA_KEY = 'epr_custom_data_v2';
+const TRANSACTION_LEDGER_KEY = 'epr_verified_transaction_keys_v3';
+// One-time purge marker: remove browser-local purchase aggregates after an
+// explicit admin reset, while allowing future uploads to be stored normally.
+const PURCHASE_DATA_PURGE_VERSION = '2026-11-18-purchase-reset-2';
+
+const getSystemTheme = (): 'light' | 'dark' => (
+  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
+);
+
+const getInitialTheme = (): 'light' | 'dark' => {
+  if (typeof window !== 'undefined') {
+    const savedTheme = localStorage.getItem('epr_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+  }
+  return getSystemTheme();
+};
+
+const readTransactionLedger = (): string[] => {
+  try {
+    const raw = localStorage.getItem(TRANSACTION_LEDGER_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
 export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userEprCode = '', onLogout }) => {
   const [data, setData] = useState<EprFullData | null>(null);
+  const [productCategoryMap, setProductCategoryMap] = useState<Record<string, { categoryProduct: string; productRebate: string; description: string }>>({});
+  const [eppCityMap, setEppCityMap] = useState<Record<string, string>>({});
+  const [eprCityMap, setEprCityMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,9 +92,13 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
   // Drawer Selected Partner
   const [selectedPartner, setSelectedPartner] = useState<PartnerData | null>(null);
+  const [selectedEppContribution, setSelectedEppContribution] = useState<any | null>(null);
+  const [selectedEppMonth, setSelectedEppMonth] = useState<any | null>(null);
+  const [selectedEppEpr, setSelectedEppEpr] = useState<any | null>(null);
+  const [selectedEppMonthLabel, setSelectedEppMonthLabel] = useState('Okt 2026');
 
   // Theme: 'light' | 'dark'
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
 
   // Password Modal
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -69,6 +106,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   // Upload Modal State (Khusus Admin)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [sharedSyncLoading, setSharedSyncLoading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
     type: 'idle',
     message: '',
@@ -77,48 +115,414 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
   // Load Data on Mount
   useEffect(() => {
-    const savedTheme = (localStorage.getItem('epr_theme') as 'light' | 'dark') || 'light';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const applySystemTheme = (isDark: boolean) => {
+      const nextTheme: 'light' | 'dark' = isDark ? 'dark' : 'light';
+      setTheme(nextTheme);
+      document.documentElement.setAttribute('data-theme', nextTheme);
+    };
+    const savedTheme = localStorage.getItem('epr_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    } else {
+      applySystemTheme(systemTheme.matches);
+    }
+    const handleSystemThemeChange = (event: MediaQueryListEvent) => applySystemTheme(event.matches);
+    const handleThemeChange = (event: MediaQueryListEvent) => {
+      if (!localStorage.getItem('epr_theme')) handleSystemThemeChange(event);
+    };
+    systemTheme.addEventListener?.('change', handleThemeChange);
 
     fetchData();
+
+    return () => systemTheme.removeEventListener?.('change', handleThemeChange);
   }, []);
+
+  const loadSharedDashboardData = async (baseData: EprFullData): Promise<EprFullData> => {
+    try {
+      const [storesResult, salesResult, contributionResult, programResult] = await Promise.all([
+        supabase.from('epr_stores').select('id,epr_code'),
+        supabase.from('sales_records').select('store_id,month,year,achievement_amount,category_totals,tx_count,qty_total'),
+        supabase.from('epp_contributions').select('*'),
+        supabase.from('program_transaction_items').select('*'),
+      ]);
+
+      if (storesResult.error) console.warn('Data master EPR bersama belum tersedia:', storesResult.error.message);
+      if (salesResult.error) console.warn('Data pembelian bersama belum tersedia:', salesResult.error.message);
+      if (contributionResult.error) console.warn('Data kontribusi EPP bersama belum tersedia:', contributionResult.error.message);
+      if (programResult.error) console.warn('Data program bersama belum tersedia:', programResult.error.message);
+
+      const codeByStoreId = new Map<string, string>();
+      (storesResult.data || []).forEach((store: any) => {
+        if (store.id && store.epr_code) codeByStoreId.set(store.id, String(store.epr_code).toUpperCase());
+      });
+
+      const sharedByEpr = new Map<string, {
+        monthly: number[];
+        monthlyByCat: Record<'Consumer' | 'Scanner' | 'Consumables' | 'Dotmatrix', number[]>;
+        txCount: number;
+        qtyTotal: number;
+      }>();
+      (salesResult.data || []).forEach((row: any) => {
+        const code = codeByStoreId.get(row.store_id);
+        const monthIndex = Number(row.month) - 1;
+        if (!code || monthIndex < 0 || monthIndex > 11) return;
+        const current = sharedByEpr.get(code) || {
+          monthly: Array(12).fill(0),
+          monthlyByCat: {
+            Consumer: Array(12).fill(0),
+            Scanner: Array(12).fill(0),
+            Consumables: Array(12).fill(0),
+            Dotmatrix: Array(12).fill(0),
+          },
+          txCount: 0,
+          qtyTotal: 0,
+        };
+        current.monthly[monthIndex] = Number(row.achievement_amount || 0);
+        const cats = row.category_totals || {};
+        (['Consumer', 'Scanner', 'Consumables', 'Dotmatrix'] as const).forEach((category) => {
+          current.monthlyByCat[category][monthIndex] = Number(cats[category] || 0);
+        });
+        current.txCount += Number(row.tx_count || 0);
+        current.qtyTotal += Number(row.qty_total || 0);
+        sharedByEpr.set(code, current);
+      });
+
+      const sharedContributions = Array.isArray(contributionResult.data) ? contributionResult.data : [];
+      const sharedProgramItems = (Array.isArray(programResult.data) ? programResult.data : []).map((row: any) => ({
+        epr: row.epr_code,
+        prog: row.program_name,
+        date: row.invoice_date,
+        model: row.material_code || '',
+        desc: row.description || '',
+        kat: row.category || '',
+        epp: row.epp_code || '',
+        epp_name: row.epp_name || '',
+        eim: row.epp_name || '',
+        qty: Number(row.qty || 0),
+        net: Number(row.net_amount || 0),
+        tx: 1,
+      }));
+
+      const partners = baseData.partners.map((partner) => {
+        const shared = sharedByEpr.get(partner.code);
+        const contributionSources = sharedContributions
+          .filter((row: any) => row.epr_code === partner.code)
+          .map((row: any) => ({
+            code: row.epp_code || 'EPP-0000',
+            name: row.epp_name || 'EPP Lokal',
+            city: row.epp_city || '-',
+            total: Number(row.total || 0),
+            tx: Number(row.tx_count || 0),
+            cats: row.categories || { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 },
+          }));
+        if (!shared && contributionSources.length === 0) return partner;
+
+        const monthlyTotal = shared?.monthly || [...partner.monthly_total];
+        const monthlyByCat = shared?.monthlyByCat || partner.monthly_by_cat;
+        const actualQ1 = monthlyTotal.slice(0, 3).reduce((sum, value) => sum + value, 0);
+        const actualQ2 = monthlyTotal.slice(3, 6).reduce((sum, value) => sum + value, 0);
+        const actualQ3 = monthlyTotal.slice(6, 9).reduce((sum, value) => sum + value, 0);
+        const actualQ4 = monthlyTotal.slice(9, 12).reduce((sum, value) => sum + value, 0);
+        const catTotals = (['Consumer', 'Scanner', 'Consumables', 'Dotmatrix'] as const).reduce((result, category) => {
+          result[category] = monthlyByCat[category].reduce((sum, value) => sum + value, 0);
+          return result;
+        }, { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 });
+
+        return {
+          ...partner,
+          monthly_total: monthlyTotal,
+          monthly_by_cat: monthlyByCat,
+          cat_totals: catTotals,
+          actual_q1: actualQ1,
+          actual_q2: actualQ2,
+          actual_q3: actualQ3,
+          actual_q4: actualQ4,
+          actual_h1: actualQ1 + actualQ2,
+          actual_h2: actualQ3 + actualQ4,
+          actual_fy: actualQ1 + actualQ2 + actualQ3 + actualQ4,
+          tx_count: shared?.txCount ?? partner.tx_count,
+          qty_total: shared?.qtyTotal ?? partner.qty_total,
+          epp_sources: contributionSources.length > 0 ? contributionSources : partner.epp_sources,
+        };
+      });
+
+      return {
+        ...baseData,
+        partners,
+        program_items: sharedProgramItems.length > 0 ? sharedProgramItems : baseData.program_items,
+      };
+    } catch (sharedErr) {
+      console.warn('Gagal membaca data dashboard bersama:', sharedErr);
+      return baseData;
+    }
+  };
+
+  const syncSharedDashboardData = async (updatedData: EprFullData) => {
+    const { data: stores, error: storesError } = await supabase
+      .from('epr_stores')
+      .select('id,epr_code');
+    if (storesError) throw storesError;
+
+    const storeIdByCode = new Map<string, string>();
+    (stores || []).forEach((store: any) => {
+      if (store.id && store.epr_code) storeIdByCode.set(String(store.epr_code).toUpperCase(), store.id);
+    });
+
+    const salesRows = updatedData.partners.flatMap((partner) => {
+      const storeId = storeIdByCode.get(partner.code.toUpperCase());
+      if (!storeId) return [];
+      return Array.from({ length: 12 }, (_, monthIndex) => ({
+        store_id: storeId,
+        month: monthIndex + 1,
+        year: monthIndex < 9 ? 2026 : 2027,
+        achievement_amount: Number(partner.monthly_total[monthIndex] || 0),
+        category_totals: {
+          Consumer: Number(partner.monthly_by_cat.Consumer?.[monthIndex] || 0),
+          Scanner: Number(partner.monthly_by_cat.Scanner?.[monthIndex] || 0),
+          Consumables: Number(partner.monthly_by_cat.Consumables?.[monthIndex] || 0),
+          Dotmatrix: Number(partner.monthly_by_cat.Dotmatrix?.[monthIndex] || 0),
+        },
+        tx_count: 0,
+        qty_total: 0,
+        notes: 'Verified upload aggregate',
+      }));
+    });
+    const { error: salesError } = await supabase
+      .from('sales_records')
+      .upsert(salesRows, { onConflict: 'store_id,month,year' });
+    if (salesError) throw salesError;
+
+    const contributionRows = updatedData.partners.flatMap((partner) =>
+      (partner.epp_sources || []).map((source) => ({
+        epp_code: source.code || 'EPP-0000',
+        epp_name: source.name || 'EPP Lokal',
+        epp_city: source.city || '-',
+        epr_code: partner.code,
+        epr_name: partner.name,
+        epr_city: partner.city,
+        total: Number(source.total || 0),
+        tx_count: Number(source.tx || 0),
+        categories: source.cats || {},
+      }))
+    );
+    const { error: deleteContributionError } = await supabase
+      .from('epp_contributions')
+      .delete()
+      .neq('epp_code', '');
+    if (deleteContributionError) throw deleteContributionError;
+    if (contributionRows.length > 0) {
+      const { error: contributionError } = await supabase
+        .from('epp_contributions')
+        .insert(contributionRows);
+      if (contributionError) throw contributionError;
+    }
+
+    const programRows = (updatedData.program_items || []).map((item: any, index: number) => ({
+      // Nomor baris menjaga transaksi yang kebetulan memiliki seluruh field
+      // sama tetap dapat disimpan sebagai dua transaksi berbeda.
+      item_key: [index, item.epr, item.prog, item.date, item.model, item.epp, item.qty, item.net].map((value) => String(value || '')).join('|'),
+      epr_code: item.epr,
+      program_name: item.prog || 'Reguler (Tanpa Program)',
+      invoice_date: String(item.date).slice(0, 10),
+      material_code: item.model || '',
+      description: item.desc || '',
+      category: item.kat || '',
+      epp_code: item.epp || '',
+      epp_name: item.epp_name || item.eim || '',
+      qty: Number(item.qty || 0),
+      net_amount: Number(item.net || 0),
+    }));
+    const { error: deleteProgramError } = await supabase
+      .from('program_transaction_items')
+      .delete()
+      .neq('item_key', '');
+    if (deleteProgramError) throw deleteProgramError;
+    if (programRows.length > 0) {
+      const { error: programError } = await supabase
+        .from('program_transaction_items')
+        .insert(programRows);
+      if (programError) throw programError;
+    }
+  };
+
+  const clearSharedDashboardData = async () => {
+    const operations = [
+      await supabase.from('sales_records').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      await supabase.from('epp_contributions').delete().neq('epp_code', ''),
+      await supabase.from('program_transaction_items').delete().neq('item_key', ''),
+    ];
+    const failed = operations.find((result) => result.error);
+    if (failed?.error) throw failed.error;
+
+    const checks = [
+      await supabase.from('sales_records').select('id', { count: 'exact', head: true }),
+      await supabase.from('epp_contributions').select('epp_code', { count: 'exact', head: true }),
+      await supabase.from('program_transaction_items').select('item_key', { count: 'exact', head: true }),
+    ];
+    const failedCheck = checks.find((result) => result.error);
+    if (failedCheck?.error) throw failedCheck.error;
+    if (checks.some((result) => Number(result.count || 0) > 0)) {
+      throw new Error('Data pembelian bersama masih tersisa di Supabase. Periksa izin DELETE/RLS tabel shared_dashboard_data.');
+    }
+  };
+
+  const handleSyncExistingData = async () => {
+    if (!data || sharedSyncLoading) return;
+    setSharedSyncLoading(true);
+    setUploadStatus({ type: 'idle', message: 'Menyinkronkan data yang sudah tersimpan...' });
+    try {
+      await syncSharedDashboardData(data);
+      setLastStats(null);
+      setUploadStatus({
+        type: 'success',
+        message: 'Data existing berhasil disinkronkan ke dashboard EPP/EPR. Tidak perlu upload ulang file yang sama.',
+      });
+    } catch (syncError: any) {
+      console.error('Gagal sinkronisasi data existing:', syncError);
+      setUploadStatus({
+        type: 'error',
+        message: `${syncError?.message || 'Sinkronisasi data existing gagal.'} Jalankan isi file shared_dashboard_data.sql di Supabase terlebih dahulu.`,
+      });
+    } finally {
+      setSharedSyncLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Invalidate the previous browser-local purchase override after the purge.
+      localStorage.removeItem('epr_custom_data');
+      if (localStorage.getItem('epr_purchase_data_purge_version') !== PURCHASE_DATA_PURGE_VERSION) {
+        localStorage.removeItem(CUSTOM_DATA_KEY);
+        localStorage.removeItem(TRANSACTION_LEDGER_KEY);
+        localStorage.setItem('epr_purchase_data_purge_version', PURCHASE_DATA_PURGE_VERSION);
+      }
+
+      // Master SKU dipakai untuk membedakan Low End, Mid High, dan kategori
+      // rebate produk ketika menghitung rincian Program Booster Up.
+      try {
+        const skuResp = await fetch(`/data/sku.xlsx?t=${Date.now()}`);
+        if (skuResp.ok) {
+          const skuWb = XLSX.read(new Uint8Array(await skuResp.arrayBuffer()), { type: 'array' });
+          const skuSheet = skuWb.Sheets[skuWb.SheetNames[0]];
+          const skuRows = XLSX.utils.sheet_to_json<Record<string, any>>(skuSheet, { defval: '' });
+          const skuMap: Record<string, { categoryProduct: string; productRebate: string; description: string }> = {};
+          skuRows.forEach((row) => {
+            const model = String(row['Model'] || '').trim().toUpperCase();
+            if (!model) return;
+            skuMap[model] = {
+              categoryProduct: String(row['Category Product'] || '').trim(),
+              productRebate: String(row['Product Rebate'] || '').trim(),
+              description: String(row['Desc'] || '').trim(),
+            };
+          });
+          setProductCategoryMap(skuMap);
+        }
+      } catch (skuErr) {
+        console.warn('Gagal memuat master kategori SKU untuk Program Berjalan', skuErr);
+      }
+
+      try {
+        const eppResp = await fetch(`/data/epp_master.csv?t=${Date.now()}`);
+        if (eppResp.ok) {
+          const eppWb = XLSX.read(await eppResp.text(), { type: 'string' });
+          const eppRows = XLSX.utils.sheet_to_json<Record<string, any>>(eppWb.Sheets[eppWb.SheetNames[0]], { defval: '' });
+          const cityMap: Record<string, string> = {};
+          eppRows.forEach((row) => {
+            const code = String(row['EPP CODE'] || '').trim().toUpperCase();
+            const city = String(row['CITY'] || '').trim();
+            if (code && city) cityMap[code] = city;
+          });
+          setEppCityMap(cityMap);
+        }
+      } catch (eppErr) {
+        console.warn('Gagal memuat master kota EPP', eppErr);
+      }
+
+      try {
+        const eprResp = await fetch(`/data/epr_master.csv?t=${Date.now()}`);
+        if (eprResp.ok) {
+          const eprWb = XLSX.read(await eprResp.text(), { type: 'string' });
+          const eprRows = XLSX.utils.sheet_to_json<Record<string, any>>(eprWb.Sheets[eprWb.SheetNames[0]], { defval: '' });
+          const cityMap: Record<string, string> = {};
+          eprRows.forEach((row) => {
+            const code = String(row['EPR CODE'] || '').trim().toUpperCase();
+            const city = String(row['CITY'] || '').trim();
+            if (code && city) cityMap[code] = city;
+          });
+          setEprCityMap(cityMap);
+        }
+      } catch (eprErr) {
+        console.warn('Gagal memuat master kota EPR', eprErr);
+      }
+
       // 1. Cek apakah ada data terbaru yang disimpan Admin di localStorage (Live Override)
-      const localDataRaw = localStorage.getItem('epr_custom_data');
+      const localDataRaw = localStorage.getItem(CUSTOM_DATA_KEY);
       if (localDataRaw) {
         try {
           const parsed = JSON.parse(localDataRaw);
           if (parsed && parsed.partners && parsed.partners.length) {
-            setData(parsed);
-            setLoading(false);
-            return;
+            const storedLedger = readTransactionLedger();
+            if (!Array.isArray(parsed.verified_transaction_keys) && storedLedger.length > 0) {
+              parsed.verified_transaction_keys = storedLedger;
+            }
+            const hasCurrentLedger = parsed.meta?.verification_ledger_version === 3
+              && Array.isArray(parsed.verified_transaction_keys);
+            const isLegacyUpload = Boolean(parsed.meta?.last_source_file) && !hasCurrentLedger;
+            if (!isLegacyUpload) {
+              if (!parsed.program_rules) {
+                try {
+                  const rulesResp = await fetch(`/data/program_rules.json?t=${Date.now()}`);
+                  if (rulesResp.ok) parsed.program_rules = await rulesResp.json();
+                } catch (rulesErr) {
+                  console.warn('Gagal memuat program_rules.json untuk data upload', rulesErr);
+                }
+              }
+              if (!parsed.program_current) {
+                try {
+                  const programResp = await fetch(`/data/program_participants_current.json?t=${Date.now()}`);
+                  if (programResp.ok) parsed.program_current = await programResp.json();
+                } catch (programErr) {
+                  console.warn('Gagal memuat program_participants_current.json untuk data upload', programErr);
+                }
+              }
+              const synchronizedData = await loadSharedDashboardData(parsed);
+              setData(synchronizedData);
+              setLoading(false);
+              return;
+            }
+            // Aggregate lama tidak dapat dipercaya untuk ditampilkan karena
+            // belum memiliki ledger transaksi. Muat ulang baseline bawaan.
+            localStorage.removeItem(CUSTOM_DATA_KEY);
           }
         } catch (e) {
           console.warn('Gagal membaca epr_custom_data dari localStorage:', e);
         }
       }
 
-      // 2. Fetch data utama EPR (target, realisasi, 24 toko) dari file statis
+      // 2. Fetch data utama EPR (target, pembelian, 24 EPR) dari file statis
       const resp = await fetch(`/data/epr_data.json?t=${Date.now()}`);
       if (!resp.ok) throw new Error(`Gagal memuat data (HTTP ${resp.status})`);
       const json: EprFullData = await resp.json();
 
-      // 3. Fetch program_partners dari booster data (sumber: Q3-Booster-Up repo)
       try {
-        const boosterResp = await fetch(`/data/program_partners.json?t=${Date.now()}`);
-        if (boosterResp.ok) {
-          const boosterJson = await boosterResp.json();
-          json.program_partners = boosterJson.program_partners || json.program_partners;
-        }
-      } catch (boosterErr) {
-        console.warn('Gagal memuat program_partners.json, pakai fallback dari epr_data.json', boosterErr);
+        const rulesResp = await fetch(`/data/program_rules.json?t=${Date.now()}`);
+        if (rulesResp.ok) json.program_rules = await rulesResp.json();
+      } catch (rulesErr) {
+        console.warn('Gagal memuat program_rules.json', rulesErr);
+      }
+      try {
+        const programResp = await fetch(`/data/program_participants_current.json?t=${Date.now()}`);
+        if (programResp.ok) json.program_current = await programResp.json();
+      } catch (programErr) {
+        console.warn('Gagal memuat program_participants_current.json', programErr);
       }
 
-      setData(json);
+      const sharedData = await loadSharedDashboardData(json);
+      setData(sharedData);
     } catch (err: any) {
       console.error('Fetch epr_data error:', err);
       setError(err.message || 'Gagal memuat data pembelian.');
@@ -128,7 +532,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   };
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    const nextTheme: 'light' | 'dark' = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     document.documentElement.setAttribute('data-theme', nextTheme);
     localStorage.setItem('epr_theme', nextTheme);
@@ -161,6 +565,23 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const isEprUser = userRole === 'epr';
   const isEppUser = userRole === 'epp';
   const isAdmin = userRole === 'admin';
+
+  const eppAliasMap: Record<string, string> = {
+    computa: 'EPP-0050',
+    topdistribusi: 'EPP-0055',
+    compumart: 'EPP-0056',
+    rakaperkasa: 'EPP-0245',
+  };
+  const ownEppCode = eppAliasMap[cleanUsername] || '';
+  const ownEppNameTokens = useMemo(() => {
+    const aliases: Record<string, string[]> = {
+      computa: ['computa', 'cv computa'],
+      topdistribusi: ['top distribusi', 'cv top distribusi'],
+      compumart: ['compumart', 'pt computek', 'pt computek infomart indonesia'],
+      rakaperkasa: ['raka perkasa', 'pt raka perkasa teknologi'],
+    };
+    return new Set((aliases[cleanUsername] || [cleanUsername]).map((value) => value.replace(/[^a-z0-9]/g, '')));
+  }, [cleanUsername]);
 
   // For EPR users: resolve the exact partner record for subtitle / scoped views.
   // Uses userEprCode (from user_metadata) with alias-table fallback.
@@ -250,6 +671,290 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     });
   }, [data, isEprUser, userEprCode, cleanUsername, tierFilter, cityFilter, statusFilter, search, period]);
 
+  // Fallback program list built from uploaded V1/V2 transaction data when the
+  // separate Booster Up participant master is empty.
+  const uploadedProgramRows = useMemo(() => {
+    if (!data?.partners) return [];
+
+    return data.partners.flatMap((partner) => {
+      if (isEprUser && ownPartner?.code !== partner.code) return [];
+
+      return (partner.program_sources || [])
+        .filter((source) => source.name && !/^reguler\b/i.test(source.name) && (source.tx > 0 || source.qty > 0))
+        .map((source) => ({
+          code: partner.code,
+          name: partner.name,
+          city: partner.city,
+          am: partner.am,
+          program: source.name,
+          tx: source.tx || 0,
+          qty: source.qty || 0,
+          total: source.total || 0,
+        }));
+    });
+  }, [data, isEprUser, ownPartner]);
+
+  const uploadedProgramSummaries = useMemo(() => {
+    const items = Array.isArray(data?.program_items) ? data.program_items : [];
+    const rules = data?.program_rules || {};
+    const ruleEntries = Object.entries(rules);
+    const normalizeProgram = (value: any) => String(value || '').trim().toLowerCase();
+    const findRule = (program: string) => {
+      const normalized = normalizeProgram(program);
+      return ruleEntries.find(([name]) => normalizeProgram(name) === normalized)
+        || ruleEntries.find(([name]) => normalized.includes(normalizeProgram(name)) || normalizeProgram(name).includes(normalized));
+    };
+    const inPeriod = (date: string, rule: any) => {
+      if (!rule?.start || !rule?.end || !date) return true;
+      return date >= rule.start && date <= rule.end;
+    };
+    const grouped = new Map<string, any>();
+
+    items.forEach((item: any) => {
+      const program = String(item?.prog || '').trim();
+      if (!program || /^reguler\b/i.test(program)) return;
+      if (isEprUser && ownPartner?.code !== item?.epr) return;
+
+      const ruleEntry = findRule(program);
+      const rule = ruleEntry?.[1];
+      if (!inPeriod(String(item?.date || ''), rule)) return;
+
+      const key = ruleEntry?.[0] || program;
+      const current = grouped.get(key) || {
+        name: key,
+        rule,
+        eligibleParticipants: rule?.participants ? Object.keys(rule.participants).length : 0,
+        activeParticipants: new Set<string>(),
+        totalQty: 0,
+        totalValue: 0,
+        transactions: 0,
+        requirements: [],
+      };
+      current.activeParticipants.add(String(item?.epr || '').trim());
+      current.totalQty += Number(item?.qty || 0);
+      current.totalValue += Number(item?.net || 0);
+      current.transactions += Number(item?.tx || 1);
+      grouped.set(key, current);
+    });
+
+    return Array.from(grouped.values()).map((summary) => {
+      const requirements = Object.values(summary.rule?.schemes || {}).flatMap((scheme: any) =>
+        Object.entries(scheme?.packages || {}).map(([tier, pkg]: [string, any]) => {
+          const targets = Object.entries(pkg?.targets || {})
+            .map(([label, value]) => `${label}: ${Number(value).toLocaleString('id-ID')}`)
+            .join(' · ');
+          return `${tier}${targets ? ` — ${targets}` : ''}`;
+        })
+      );
+      return {
+        ...summary,
+        activeParticipantCount: summary.activeParticipants.size,
+        period: summary.rule?.start && summary.rule?.end
+          ? `${summary.rule.start} s/d ${summary.rule.end}`
+          : 'Periode belum tersedia di master program',
+        requirements: requirements.length > 0 ? requirements : ['Ketentuan belum tersedia di master program'],
+      };
+    });
+  }, [data, isEprUser, ownPartner]);
+
+  const programAchievementRows = useMemo(() => {
+    const current = data?.program_current;
+    if (!current?.participants?.length) return [];
+
+    const rule = data?.program_rules?.[current.program_name] || data?.program_rules?.['Q3 Booster Up'] || {};
+    const items = Array.isArray(data?.program_items) ? data.program_items : [];
+    const start = current.start;
+    const end = current.end;
+    const normalize = (value: any) => String(value || '').trim().toLowerCase();
+    const normalizeCode = (value: any) => String(value || '').trim().toUpperCase();
+    const normalizeName = (value: any) => normalize(value).replace(/[^a-z0-9]/g, '');
+    const allowedLocalEppCodes = new Set(
+      (Array.isArray(rule?.local_epps) ? rule.local_epps : [])
+        .map((code: any) => normalizeCode(code))
+        .filter(Boolean)
+    );
+    const allowedLocalEppNames = new Set([
+      ...(Array.isArray(rule?.local_epp_names) ? rule.local_epp_names : []),
+      'Compumart',
+      'PT Computek',
+      'PT Computek Infomart Indonesia',
+      'Top Distribusi',
+      'CV Top Distribusi',
+      'Raka Perkasa',
+      'PT Raka Perkasa Teknologi',
+      'Computa',
+      'CV Computa',
+    ].map(normalizeName).filter(Boolean));
+    const consumablesProductCodes = new Set([
+      ...(Array.isArray(rule?.ink_bottle_skus) ? rule.ink_bottle_skus : []),
+      ...(Array.isArray(rule?.other_ink_skus) ? rule.other_ink_skus : []),
+    ].map(normalizeCode).filter(Boolean));
+    const ink664003Codes = new Set(
+      (Array.isArray(rule?.ink_bottle_skus) ? rule.ink_bottle_skus : [])
+        .map((code: any) => normalizeCode(code))
+        .filter(Boolean)
+    );
+    const consumablesOtherCodes = new Set(
+      (Array.isArray(rule?.other_ink_skus) ? rule.other_ink_skus : [])
+        .map((code: any) => normalizeCode(code))
+        .filter(Boolean)
+    );
+    const consumerProductConfig = rule?.consumer_products || {
+      low_end_models: ['L121', 'L3211', 'L3251'],
+      mid_high_models: ['L5290', 'L4360', 'L6370', 'L6390', 'L6440', 'L6490', 'L11050', 'L14150', 'L15150', 'L8050', 'L8100', 'L18050', 'All M Series'],
+      ink_bottle_families: ['664', '671', '001', '003', '008', '057'],
+    };
+    const lowEndModels = (Array.isArray(consumerProductConfig.low_end_models) ? consumerProductConfig.low_end_models : [])
+      .map((model: any) => normalizeCode(model));
+    const midHighModels = (Array.isArray(consumerProductConfig.mid_high_models) ? consumerProductConfig.mid_high_models : [])
+      .map((model: any) => normalizeCode(model));
+    const inkBottleFamilies = (Array.isArray(consumerProductConfig.ink_bottle_families) ? consumerProductConfig.ink_bottle_families : [])
+      .map((family: any) => normalizeCode(family));
+    const classifyConsumerProduct = (item: any): 'low_end' | 'mid_high' | 'ink_bottle' | '' => {
+      const itemCode = normalizeCode(item?.model);
+      const skuInfo = productCategoryMap[itemCode];
+      const productText = `${itemCode} ${String(item?.desc || '')} ${String(skuInfo?.description || '')}`
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, ' ');
+      const tokens = new Set(productText.split(/\s+/).filter(Boolean));
+      const familyPrefixes: Record<string, string[]> = {
+        '664': ['C13T664'],
+        '671': ['C13T671'],
+        '001': ['C13T03Y'],
+        '003': ['C13T00V'],
+        '008': ['C13T06G'],
+        '057': ['C13T09D'],
+      };
+      const isInkBottle = inkBottleFamilies.some((family) =>
+        tokens.has(family) || (familyPrefixes[family] || []).some((prefix) => itemCode.includes(prefix))
+      );
+      if (isInkBottle) return 'ink_bottle';
+      const hasModel = (model: string) => {
+        if (model === 'ALL M SERIES') return Array.from(tokens).some((token) => /^M\d+$/.test(token));
+        return tokens.has(model);
+      };
+      if (lowEndModels.some(hasModel)) return 'low_end';
+      if (midHighModels.some(hasModel)) return 'mid_high';
+      return '';
+    };
+
+    return current.participants
+      .filter((participant) => !isEprUser || ownPartner?.code === participant.code)
+      .map((participant) => {
+        const isConsumables = /consumables/i.test(participant.pack_name || '');
+        const schemeName = isConsumables ? 'consumables' : 'unit_ink';
+        const tier = String(participant.pack_name || '').split(/\s+/)[0].toUpperCase();
+        const packageRule = rule?.schemes?.[schemeName]?.packages?.[tier] || {};
+        const targets = packageRule.targets || {};
+        const targetQty = Number(packageRule.total_qty || Object.values(targets).reduce((sum: number, value: any) => sum + Number(value || 0), 0));
+        const lowEndTargetQty = schemeName === 'unit_ink' ? Number(targets.low_end || 0) : 0;
+        const midHighTargetQty = schemeName === 'unit_ink' ? Number(targets.mid_high || 0) : 0;
+        const unitTargetQty = lowEndTargetQty + midHighTargetQty;
+        const inkBottleTargetQty = schemeName === 'unit_ink' ? Number(targets.ink_bottle || 0) : 0;
+        const ink664003TargetQty = schemeName === 'consumables' ? Number(targets.ink_664_003 || 0) : 0;
+        const consumablesOtherTargetQty = schemeName === 'consumables' ? Number(targets.cons_other || 0) : 0;
+        const participantItems = items.filter((item: any) => {
+          const itemDate = String(item?.date || '').slice(0, 10);
+          const itemProgram = normalize(item?.prog);
+          const programMatch = itemProgram.includes(normalize(current.program_name))
+            || itemProgram.includes('booster up');
+          const itemProductCode = String(item?.model || '').trim().toUpperCase();
+          const consumerProductGroup = classifyConsumerProduct(item);
+          // Consumer = unit Consumer + ink bottle. Consumables tetap dibatasi
+          // pada daftar SKU Consumables yang sudah disetujui program.
+          const productMatch = isConsumables
+            ? (consumablesProductCodes.size > 0 && consumablesProductCodes.has(itemProductCode))
+            : Boolean(consumerProductGroup);
+          const itemEppCode = normalizeCode(item?.epp || item?.epp_code);
+          const itemEppName = normalizeName(item?.epp_name || item?.eim);
+          const localEppMatch = (allowedLocalEppCodes.size > 0 || allowedLocalEppNames.size > 0)
+            && (allowedLocalEppCodes.has(itemEppCode) || allowedLocalEppNames.has(itemEppName));
+          return item?.epr === participant.code
+            && itemDate >= start
+            && itemDate <= end
+            && programMatch
+            && productMatch
+            && localEppMatch;
+        });
+        const monthQty = (month: string) => participantItems
+          .filter((item: any) => String(item?.date || '').slice(0, 7) === month)
+          .reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0);
+        const actualQty = participantItems.reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0);
+        const actualValue = participantItems.reduce((sum: number, item: any) => sum + Number(item?.net || 0), 0);
+        const actualInkBottleQty = participantItems
+          .filter((item: any) => classifyConsumerProduct(item) === 'ink_bottle')
+          .reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0);
+        const actualLowEndQty = schemeName === 'unit_ink'
+          ? participantItems
+            .filter((item: any) => classifyConsumerProduct(item) === 'low_end')
+            .reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0)
+          : 0;
+        const actualMidHighQty = schemeName === 'unit_ink'
+          ? participantItems
+            .filter((item: any) => classifyConsumerProduct(item) === 'mid_high')
+            .reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0)
+          : 0;
+        const actualUnitQty = Math.max(0, actualQty - actualInkBottleQty);
+        const actualUnclassifiedUnitQty = Math.max(0, actualUnitQty - actualLowEndQty - actualMidHighQty);
+        const actualInk664003Qty = schemeName === 'consumables'
+          ? participantItems
+            .filter((item: any) => ink664003Codes.has(normalizeCode(item?.model)))
+            .reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0)
+          : 0;
+        const actualConsumablesOtherQty = schemeName === 'consumables'
+          ? participantItems
+            .filter((item: any) => consumablesOtherCodes.has(normalizeCode(item?.model)))
+            .reduce((sum: number, item: any) => sum + Number(item?.qty || 0), 0)
+          : 0;
+        // Paket hanya dianggap tercapai jika setiap subkategori memenuhi
+        // targetnya. Qty kategori yang berlebih tidak boleh menutup kategori
+        // lain yang masih kurang.
+        const achievementParts = schemeName === 'unit_ink'
+          ? [
+              [actualLowEndQty, lowEndTargetQty],
+              [actualMidHighQty, midHighTargetQty],
+              [actualInkBottleQty, inkBottleTargetQty],
+            ]
+          : [
+              [actualInk664003Qty, ink664003TargetQty],
+              [actualConsumablesOtherQty, consumablesOtherTargetQty],
+            ];
+        const achievementRatios = achievementParts
+          .filter(([, target]) => Number(target) > 0)
+          .map(([actual, target]) => Number(actual) / Number(target));
+        const achievement = achievementRatios.length > 0 ? Math.min(...achievementRatios) : 0;
+
+        return {
+          ...participant,
+          scheme: schemeName,
+          tier,
+          targetQty,
+          lowEndTargetQty,
+          midHighTargetQty,
+          unitTargetQty,
+          inkBottleTargetQty,
+          ink664003TargetQty,
+          consumablesOtherTargetQty,
+          targets,
+          actualQty,
+          actualLowEndQty,
+          actualMidHighQty,
+          actualUnitQty,
+          actualUnclassifiedUnitQty,
+          actualInkBottleQty,
+          actualInk664003Qty,
+          actualConsumablesOtherQty,
+          actualValue,
+          txCount: participantItems.length,
+          octQty: monthQty('2026-10'),
+          novQty: monthQty('2026-11'),
+          decQty: monthQty('2026-12'),
+          gap: Math.max(0, targetQty - actualQty),
+          achievement,
+        };
+      });
+  }, [data, productCategoryMap, isEprUser, ownPartner]);
+
   // Compute period metrics for a partner
   function getPartnerPeriodMetrics(p: PartnerData) {
     const origFy = p.target_original || p.target_fy || 0;
@@ -280,6 +985,53 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     return getPartnerPeriodMetrics(p).ach;
   }
 
+  function getPartnerPeriodCategoryTotals(p: PartnerData) {
+    // Validasi EPP harus bisa dibandingkan dengan rekap Admin yang mencakup
+    // seluruh FY, bukan hanya slicer H2/Q3/Q4 yang sedang aktif.
+    const monthIndexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    return (['Consumer', 'Consumables', 'Scanner', 'Dotmatrix'] as const).reduce((totals, category) => {
+      totals[category] = monthIndexes.reduce(
+        (sum, monthIndex) => sum + Number(p.monthly_by_cat?.[category]?.[monthIndex] || 0),
+        0,
+      );
+      return totals;
+    }, { Consumer: 0, Consumables: 0, Scanner: 0, Dotmatrix: 0 });
+  }
+
+  const classifyMixItem = (item: any): 'low_end' | 'mid_high' | '' => {
+    const model = String(item?.model || '').trim().toUpperCase();
+    const skuInfo = productCategoryMap[model];
+    const categoryProduct = String(skuInfo?.categoryProduct || '').trim().toLowerCase();
+    if (categoryProduct === 'low end') return 'low_end';
+    if (categoryProduct === 'mid high') return 'mid_high';
+
+    const productText = `${model} ${String(item?.desc || '')} ${String(skuInfo?.description || '')}`
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, ' ');
+    const tokens = new Set(productText.split(/\s+/).filter(Boolean));
+    if (['L121', 'L3211', 'L3251'].some((code) => tokens.has(code))) return 'low_end';
+    if (['L5290', 'L4360', 'L6370', 'L6390', 'L6440', 'L6490', 'L11050', 'L14150', 'L15150', 'L8050', 'L8100', 'L18050'].some((code) => tokens.has(code))) {
+      return 'mid_high';
+    }
+    if (Array.from(tokens).some((token) => /^M\d+$/.test(token))) return 'mid_high';
+    return '';
+  };
+
+  const isItemInSelectedPeriod = (dateValue: any) => {
+    const date = String(dateValue || '').slice(0, 10);
+    if (!date) return false;
+    const bounds = period === 'h1'
+      ? ['2026-04-01', '2026-09-30']
+      : period === 'h2'
+        ? ['2026-10-01', '2027-03-31']
+        : period === 'q3'
+          ? ['2026-10-01', '2026-12-31']
+          : period === 'q4'
+            ? ['2027-01-01', '2027-03-31']
+            : ['2026-04-01', '2027-03-31'];
+    return date >= bounds[0] && date <= bounds[1];
+  };
+
   // Aggregate Overview KPIs
   const kpiSummary = useMemo(() => {
     let totalRevenue = 0;
@@ -288,14 +1040,31 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     let totalMidHi = 0;
     let achievedCount = 0;
 
+    const programItems = Array.isArray(data?.program_items) ? data.program_items : [];
+    let classifiedMixItems = 0;
     filteredPartners.forEach((p) => {
       const { target, actual, ach } = getPartnerPeriodMetrics(p);
       totalRevenue += actual;
       totalTarget += target;
-      totalLowEnd += p.low_end || 0;
-      totalMidHi += p.mid_hi || 0;
+      const partnerMixItems = programItems.filter((item: any) =>
+        String(item?.epr || '').trim().toUpperCase() === p.code.toUpperCase()
+        && isItemInSelectedPeriod(item?.date)
+      );
+      partnerMixItems.forEach((item: any) => {
+        const bucket = classifyMixItem(item);
+        if (!bucket) return;
+        classifiedMixItems += 1;
+        if (bucket === 'low_end') totalLowEnd += Number(item?.net || 0);
+        if (bucket === 'mid_high') totalMidHi += Number(item?.net || 0);
+      });
       if (ach >= 1.0) achievedCount++;
     });
+
+    // Fallback untuk data lama yang belum memiliki rincian transaksi program.
+    if (classifiedMixItems === 0) {
+      totalLowEnd = filteredPartners.reduce((sum, partner) => sum + Number(partner.low_end || 0), 0);
+      totalMidHi = filteredPartners.reduce((sum, partner) => sum + Number(partner.mid_hi || 0), 0);
+    }
 
     const achOverall = totalTarget > 0 ? totalRevenue / totalTarget : 0;
     const totalMix = totalLowEnd + totalMidHi;
@@ -320,6 +1089,21 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
     const q4Ach = q4Target > 0 ? q4Actual / q4Target : 0;
     const q4Gap = Math.max(0, q4Target - q4Actual);
+
+    const monthlyMetrics = [6, 7, 8, 9, 10, 11].map((monthIndex) => {
+      const actual = filteredPartners.reduce((sum, partner) => sum + (partner.monthly_total[monthIndex] || 0), 0);
+      const target = filteredPartners.reduce((sum, partner) => {
+        const originalFy = partner.target_original || partner.target_fy || 0;
+        const fallbackWeight = monthIndex <= 8 ? 0.10 : 0.06;
+        return sum + (partner.target_original_monthly?.[monthIndex] ?? Math.round(originalFy * fallbackWeight));
+      }, 0);
+      return {
+        actual,
+        target,
+        achievement: target > 0 ? actual / target : 0,
+        gap: Math.max(0, target - actual),
+      };
+    });
 
     // Category Totals
     let catConsumer = 0;
@@ -353,13 +1137,14 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       q4Actual,
       q4Ach,
       q4Gap,
+      monthlyMetrics,
       catConsumer,
       catScanner,
       catConsumables,
       catDotmatrix,
       totalCat
     };
-  }, [filteredPartners, period]);
+  }, [data, filteredPartners, period, productCategoryMap]);
 
   // Unique cities for Slicer
   const uniqueCities = useMemo(() => {
@@ -372,6 +1157,207 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     if (!data?.partners) return [];
     return Array.from(new Set(data.partners.map((p) => p.tier).filter(Boolean)));
   }, [data]);
+
+  // Rekap seluruh EPP yang benar-benar memiliki pembelian ke EPR master.
+  // Sumber utama berasal dari epp_sources pada setiap partner agar ikut
+  // berubah setelah upload transaksi baru.
+  const eppContributionRows = useMemo(() => {
+    if (!data?.partners) return data?.epp_summary || [];
+
+    // Utamakan ledger transaksi terbaru agar snapshot epp_sources lama tidak
+    // membuat Admin menampilkan EPR yang tidak ada pada akun EPP.
+    const transactionItems = Array.isArray(data.program_items) ? data.program_items : [];
+    if (transactionItems.length > 0) {
+      const transactionGrouped = new Map<string, any>();
+      transactionItems.forEach((item: any) => {
+        const eppCode = String(item?.epp || item?.epp_code || '').trim().toUpperCase() || 'EPP-0000';
+        const eppName = String(item?.epp_name || item?.eim || '').trim() || 'EPP Lokal';
+        const eprCode = String(item?.epr || item?.epr_code || '').trim().toUpperCase();
+        const partner = data.partners.find((candidate) => candidate.code === eprCode);
+        const key = `${eppCode}|${eppName}`;
+        const current = transactionGrouped.get(key) || {
+          code: eppCode,
+          name: eppName,
+          city: eppCityMap[eppCode] || '-',
+          total: 0,
+          tx_count: 0,
+          partner_codes: new Set<string>(),
+          partner_details: [],
+          cats: { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 },
+        };
+        const amount = Number(item?.net || 0);
+        const category = String(item?.kat || 'Consumer').trim() || 'Consumer';
+        current.total += amount;
+        current.tx_count += Number(item?.tx || 1);
+        current.cats[category] = (current.cats[category] || 0) + amount;
+        if (eprCode) {
+          current.partner_codes.add(eprCode);
+          const existingPartner = current.partner_details.find((detail: any) => detail.code === eprCode);
+          if (existingPartner) {
+            existingPartner.total += amount;
+          } else {
+            current.partner_details.push({
+              code: eprCode,
+              name: partner?.name || eprCode,
+              city: eprCityMap[eprCode] || partner?.city || '-',
+              total: amount,
+            });
+          }
+        }
+        transactionGrouped.set(key, current);
+      });
+
+      return Array.from(transactionGrouped.values())
+        .map((row) => ({ ...row, partner_count: row.partner_codes.size }))
+        .sort((a, b) => b.total - a.total);
+    }
+
+    const grouped = new Map<string, any>();
+    data.partners.forEach((partner) => {
+      (partner.epp_sources || []).forEach((source) => {
+        const key = source.code || source.name || 'EPP-0000';
+        const current = grouped.get(key) || {
+          code: source.code || 'EPP-0000',
+          name: source.name || 'EPP Lokal',
+          city: eppCityMap[String(source.code || '').trim().toUpperCase()] || source.city || '-',
+          total: 0,
+          tx_count: 0,
+          partner_codes: new Set<string>(),
+          partner_details: [],
+          cats: { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 },
+        };
+        current.total += Number(source.total || 0);
+        current.tx_count += Number(source.tx || 0);
+        current.partner_codes.add(partner.code);
+        if (!current.partner_details.some((item: any) => item.code === partner.code)) {
+          current.partner_details.push({
+            code: partner.code,
+            name: partner.name,
+            city: eprCityMap[partner.code] || partner.city,
+            total: Number(source.total || 0),
+          });
+        } else {
+          const partnerDetail = current.partner_details.find((item: any) => item.code === partner.code);
+          if (partnerDetail) partnerDetail.total += Number(source.total || 0);
+        }
+        Object.entries(source.cats || {}).forEach(([category, amount]) => {
+          current.cats[category] = (current.cats[category] || 0) + Number(amount || 0);
+        });
+        grouped.set(key, current);
+      });
+    });
+
+    if (grouped.size === 0) return data.epp_summary || [];
+    return Array.from(grouped.values())
+      .map((row) => ({
+        ...row,
+        partner_count: row.partner_codes.size,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [data, eppCityMap, eprCityMap]);
+
+  const eppUploadAudit = useMemo(() => {
+    const monthIndexes = period === 'h1'
+      ? [0, 1, 2, 3, 4, 5]
+      : period === 'h2'
+        ? [6, 7, 8, 9, 10, 11]
+        : period === 'q3'
+          ? [6, 7, 8]
+          : period === 'q4'
+            ? [9, 10, 11]
+            : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const monthLabels = ['Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar'];
+    const monthBounds = [
+      ['2026-04-01', '2026-04-30'], ['2026-05-01', '2026-05-31'], ['2026-06-01', '2026-06-30'],
+      ['2026-07-01', '2026-07-31'], ['2026-08-01', '2026-08-31'], ['2026-09-01', '2026-09-30'],
+      ['2026-10-01', '2026-10-31'], ['2026-11-01', '2026-11-30'], ['2026-12-01', '2026-12-31'],
+      ['2027-01-01', '2027-01-31'], ['2027-02-01', '2027-02-28'], ['2027-03-01', '2027-03-31'],
+    ];
+    const categories = ['Consumer', 'Consumables', 'Scanner', 'Dotmatrix'] as const;
+    const items = Array.isArray(data?.program_items) ? data.program_items : [];
+    const normalizeEppCode = (value: any) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const ownEppCodes = new Set([normalizeEppCode(ownEppCode)].filter(Boolean));
+    const ownEppNames = new Set(ownEppNameTokens);
+    (data?.partners || []).forEach((partner) => {
+      (partner.epp_sources || []).forEach((source) => {
+        const sourceCode = normalizeEppCode(source.code);
+        const sourceName = String(source.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isOwnSource = (sourceCode && ownEppCodes.has(sourceCode))
+          || (sourceName && Array.from(ownEppNames).some((name) => name && (sourceName.includes(name) || name.includes(sourceName))));
+        if (isOwnSource) {
+          if (sourceCode) ownEppCodes.add(sourceCode);
+          if (sourceName) ownEppNames.add(sourceName);
+        }
+      });
+    });
+    const ownItems = items.filter((item: any) => {
+      const itemCode = normalizeEppCode(item?.epp || item?.epp_code);
+      const itemName = String(item?.epp_name || item?.eim || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      return (itemCode && ownEppCodes.has(itemCode))
+        || (itemName && Array.from(ownEppNames).some((name) => name && (itemName.includes(name) || name.includes(itemName))));
+    });
+    const rows = monthIndexes.map((monthIndex) => {
+      const [start, end] = monthBounds[monthIndex];
+      const monthItems = ownItems.filter((item: any) => {
+        const date = String(item?.date || '').slice(0, 10);
+        return date >= start && date <= end;
+      });
+      const totals = categories.reduce((result, category) => {
+        result[category] = monthItems
+          .filter((item: any) => String(item?.kat || '').trim().toLowerCase() === category.toLowerCase())
+          .reduce((sum: number, item: any) => sum + Number(item?.net || 0), 0);
+        return result;
+      }, { Consumer: 0, Consumables: 0, Scanner: 0, Dotmatrix: 0 });
+      const byEpr = new Map<string, any>();
+      monthItems.forEach((item: any) => {
+        const eprCode = String(item?.epr || '').trim().toUpperCase() || 'EPR-UNKNOWN';
+        const partner = data?.partners?.find((candidate) => candidate.code === eprCode);
+        const current = byEpr.get(eprCode) || {
+          code: eprCode,
+          name: partner?.name || eprCode,
+          city: partner?.city || '-',
+          qty: 0,
+          total: 0,
+          categories: {},
+          products: {},
+        };
+        const category = String(item?.kat || 'Lainnya').trim() || 'Lainnya';
+        const model = String(item?.model || item?.desc || 'SKU Tidak Diketahui').trim() || 'SKU Tidak Diketahui';
+        const invoiceDate = String(item?.date || '').slice(0, 10);
+        current.qty += Number(item?.qty || 0);
+        current.total += Number(item?.net || 0);
+        current.categories[category] = (current.categories[category] || 0) + Number(item?.qty || 0);
+        current.products[category] = current.products[category] || {};
+        const productDetail = current.products[category][model] || { qty: 0, dates: [] };
+        productDetail.qty += Number(item?.qty || 0);
+        if (invoiceDate && !productDetail.dates.includes(invoiceDate)) productDetail.dates.push(invoiceDate);
+        current.products[category][model] = productDetail;
+        byEpr.set(eprCode, current);
+      });
+      return {
+        label: `${monthLabels[monthIndex]} ${monthIndex < 9 ? '2026' : '2027'}`,
+        ...totals,
+        total: categories.reduce((sum, category) => sum + totals[category], 0),
+        eprDetails: Array.from(byEpr.values()).sort((a, b) => b.total - a.total),
+      };
+    });
+    const detailTotal = ownItems.reduce((sum: number, item: any) => sum + Number(item?.net || 0), 0);
+    const dashboardTotal = Number(eppContributionRows.find((row: any) => row.code === ownEppCode)?.total || 0);
+    const difference = Math.abs(detailTotal - dashboardTotal);
+    return {
+      rows,
+      detailTotal,
+      dashboardTotal,
+      difference,
+      hasDetails: ownItems.length > 0,
+      status: ownItems.length === 0 ? 'empty' : difference <= 1 ? 'match' : 'mismatch',
+    };
+  }, [data, eppContributionRows, ownEppCode, ownEppNameTokens, period]);
+
+  const selectedEppAuditRow = useMemo(
+    () => eppUploadAudit.rows.find((row: any) => row.label === selectedEppMonthLabel) || eppUploadAudit.rows[0] || null,
+    [eppUploadAudit, selectedEppMonthLabel],
+  );
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -387,7 +1373,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const handleExportCsv = () => {
     if (!filteredPartners.length) return;
 
-    const headers = ['Kode EPR', 'Nama Toko', 'Kota', 'Tier', 'Target Period', 'Actual Period', 'Ach %'];
+    const headers = ['Kode EPR', 'Nama EPR', 'Kota', 'Tier', 'Target Period', 'Actual Period', 'Ach %'];
     const rows = filteredPartners.map((p) => {
       const { target, actual, ach } = getPartnerPeriodMetrics(p);
       return [
@@ -422,18 +1408,57 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     setLastStats(null);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const buffer = ev.target?.result;
         if (!buffer) throw new Error('File tidak dapat dibaca.');
 
         const wb = XLSX.read(new Uint8Array(buffer as ArrayBuffer), { type: 'array' });
+
+        // Data hasil upload versi lama hanya menyimpan agregat per EPR, tanpa
+        // identitas transaksi. Saat ditemukan, mulai ulang dari data bawaan
+        // agar upload sekarang tidak menggandakan agregat lama. Ledger baru
+        // akan dibuat oleh processUploadedWorkbook dari baris V1/V2/V3.
+        const storedLedger = readTransactionLedger();
+        let uploadBaseline = data
+          ? {
+              ...data,
+              verified_transaction_keys: Array.from(new Set([
+                ...(data.verified_transaction_keys || []),
+                ...storedLedger,
+              ])),
+            }
+          : data;
+        const hasCurrentLedger = data?.meta?.verification_ledger_version === 3
+          && Array.isArray(data.verified_transaction_keys);
+        if (data?.meta?.last_source_file && !hasCurrentLedger) {
+          const defaultResponse = await fetch(`/data/epr_data.json?t=${Date.now()}`);
+          if (!defaultResponse.ok) {
+            throw new Error(`Gagal memuat data bawaan sebagai baseline (HTTP ${defaultResponse.status}).`);
+          }
+          const defaultData = await defaultResponse.json() as EprFullData;
+          uploadBaseline = {
+            ...defaultData,
+            program_rules: data?.program_rules || defaultData.program_rules,
+            program_current: data?.program_current || defaultData.program_current,
+          };
+          localStorage.removeItem(CUSTOM_DATA_KEY);
+        }
         
+        let priceDatabase: Record<string, number> = {};
+        try {
+          const priceResponse = await fetch(`/data/sku_price_database.json?t=${Date.now()}`);
+          if (priceResponse.ok) priceDatabase = await priceResponse.json();
+        } catch (priceError) {
+          console.warn('Database harga SKU tidak dapat dimuat; harga upload dipakai apa adanya:', priceError);
+        }
+
         // Jalankan mesin verifikasi & deduplikasi penuh (mendukung V1, V2, V3 Report Retail, & RETAIL)
-        const { updatedData, stats } = processUploadedWorkbook(wb, file.name, data);
+        const { updatedData, stats } = processUploadedWorkbook(wb, file.name, uploadBaseline, priceDatabase);
 
         // Simpan ke localStorage agar bertahan di sesi browser Admin
-        localStorage.setItem('epr_custom_data', JSON.stringify(updatedData));
+        localStorage.setItem(CUSTOM_DATA_KEY, JSON.stringify(updatedData));
+        localStorage.setItem(TRANSACTION_LEDGER_KEY, JSON.stringify(updatedData.verified_transaction_keys || []));
         setData(updatedData);
         setLastStats(stats);
 
@@ -447,7 +1472,15 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           }
         }
 
-        const summaryMsg = `Template: ${stats.templateVersion} | Terverifikasi: ${stats.verifiedCount.toLocaleString('id-ID')} baris | Duplikat: ${stats.duplicateCount.toLocaleString('id-ID')} | Luar Master: ${stats.outsideMasterCount.toLocaleString('id-ID')}`;
+        let sharedSyncMessage = '';
+        try {
+          await syncSharedDashboardData(updatedData);
+          sharedSyncMessage = ' | Sinkron EPP/EPR: berhasil';
+        } catch (sharedSyncError: any) {
+          console.warn('Sinkronisasi dashboard bersama gagal:', sharedSyncError);
+          sharedSyncMessage = ' | Sinkron EPP/EPR: jalankan shared_dashboard_data.sql';
+        }
+        const summaryMsg = `Template: ${stats.templateVersion} | Terverifikasi: ${stats.verifiedCount.toLocaleString('id-ID')} baris | Sudah terverifikasi: ${stats.alreadyVerifiedCount.toLocaleString('id-ID')} | Kembar input: ${stats.duplicateInInputCount.toLocaleString('id-ID')} | Luar Master: ${stats.outsideMasterCount.toLocaleString('id-ID')}${sharedSyncMessage}`;
         
         setUploadStatus({
           type: 'success',
@@ -472,12 +1505,24 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     reader.readAsArrayBuffer(file);
   };
 
-  const handleResetToDefaultData = () => {
+  const handleResetToDefaultData = async () => {
     if (!confirm('Apakah Anda yakin ingin mereset data dashboard kembali ke data bawaan sistem?')) return;
-    localStorage.removeItem('epr_custom_data');
-    fetchData();
-    setIsUploadModalOpen(false);
-    alert('Data dashboard berhasil dikembalikan ke data default.');
+    localStorage.removeItem(CUSTOM_DATA_KEY);
+    localStorage.removeItem(TRANSACTION_LEDGER_KEY);
+    try {
+      await clearSharedDashboardData();
+      await fetchData();
+      setIsUploadModalOpen(false);
+      alert('Data dashboard berhasil dikembalikan ke data default.');
+    } catch (sharedError: any) {
+      console.error('Data lokal berhasil direset, tetapi data bersama belum dapat dihapus:', sharedError);
+      setUploadStatus({
+        type: 'error',
+        message: `${sharedError?.message || 'Data bersama belum dapat dihapus.'} Pastikan SQL shared_dashboard_data.sql terbaru sudah dijalankan dan role Admin memiliki izin DELETE.`,
+      });
+      await fetchData();
+      return;
+    }
   };
 
   if (loading) {
@@ -509,6 +1554,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   }
 
   return (
+    <>
     <div className="app-shell min-h-screen">
       {/* Top Navigation Bar */}
       <header className="topbar">
@@ -521,13 +1567,11 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
               <h1>EPR Achievement Dashboard</h1>
               <span className="badge badge-indigo" id="fyBadge">FY26 · Focus H2</span>
               {isAdmin && <span className="badge badge-emerald">ADMIN</span>}
-              {isEppUser && <span className="badge badge-sky">EPP: {cleanUsername.toUpperCase()}</span>}
-              {isEprUser && <span className="badge badge-amber">TOKO: {cleanUsername.toUpperCase()}</span>}
             </div>
             <p className="subtitle" id="metaSubtitle">
-              {isEprUser 
-                ? `Dashboard Toko Retail ${ownPartner?.name || cleanUsername.toUpperCase()} (Strict Read-Only)`
-                : `Monitoring Pencapaian 24 Toko Retail (Excl. PPN) · AM: ARIS`}
+              {isEprUser
+                ? `Dashboard ${ownPartner?.name || cleanUsername.toUpperCase()}`
+                : 'Monitoring Pencapaian EPR'}
             </p>
           </div>
         </div>
@@ -548,23 +1592,27 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             </button>
           )}
 
-          <button 
-            onClick={() => window.print()}
-            className="btn btn-secondary" 
-            title="Cetak / Share Result ke PDF"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Share PDF</span>
-          </button>
+          {!isEprUser && (
+            <>
+              <button
+                onClick={() => window.print()}
+                className="btn btn-secondary"
+                title="Cetak / Share Result ke PDF"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Share PDF</span>
+              </button>
 
-          <button 
-            onClick={handleExportCsv}
-            className="btn btn-secondary" 
-            title="Unduh ringkasan CSV"
-          >
-            <FileDown className="w-4 h-4" />
-            <span>Export CSV</span>
-          </button>
+              <button
+                onClick={handleExportCsv}
+                className="btn btn-secondary"
+                title="Unduh ringkasan CSV"
+              >
+                <FileDown className="w-4 h-4" />
+                <span>Export CSV</span>
+              </button>
+            </>
+          )}
 
           <button 
             onClick={() => setIsPasswordModalOpen(true)}
@@ -575,10 +1623,12 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             <span>Ganti Password</span>
           </button>
 
-          <button 
+          <button
+            type="button"
             onClick={toggleTheme}
-            className="btn btn-icon" 
-            title="Ganti Tema Terang / Gelap"
+            className="btn btn-icon"
+            title="Ubah tema manual Light / Dark"
+            aria-label="Ubah tema manual Light / Dark"
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
           </button>
@@ -605,14 +1655,16 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           <span>Overview &amp; Target H2</span>
         </button>
 
-        <button 
-          type="button" 
-          onClick={() => setActivePage('program')}
-          className={`pbi-nav-btn ${activePage === 'program' ? 'active' : ''}`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Paketan Berjalan (Booster Up)</span>
-        </button>
+        {data.program_current && (
+          <button
+            type="button"
+            onClick={() => setActivePage('program')}
+            className={`pbi-nav-btn ${activePage === 'program' ? 'active' : ''}`}
+          >
+            <Briefcase className="w-4 h-4" />
+            <span>Program Berjalan</span>
+          </button>
+        )}
 
         {isAdmin && (
           <button 
@@ -621,7 +1673,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             className={`pbi-nav-btn ${activePage === 'audit' ? 'active' : ''}`}
           >
             <FileText className="w-4 h-4" />
-            <span>Kontribusi EPP &amp; Audit</span>
+            <span>Kontribusi EPP</span>
           </button>
         )}
       </nav>
@@ -737,12 +1789,6 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             </>
           )}
 
-          {isEprUser && (
-            <div className="p-3 bg-[var(--surface-2)] rounded-xl border border-[var(--border)] text-xs text-[var(--text-3)] leading-relaxed">
-              <strong className="text-[var(--text)] block mb-1">Mode Toko Retail</strong>
-              Dashboard dikunci khusus untuk toko Anda (Read-Only). Semua data target & realisasi terverifikasi secara resmi dari sistem Epson FY26.
-            </div>
-          )}
         </aside>
 
         {/* Right Canvas */}
@@ -752,8 +1798,8 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           {/* ======================================================== */}
           {activePage === 'overview' && (
             <div className="space-y-6">
-              {/* 4 KPI Cards */}
-              <section className="kpi-grid">
+              {/* KPI Cards */}
+              {!isEppUser && <section className="kpi-grid">
                 <article className="kpi-card">
                   <div className="kpi-head">
                     <span className="kpi-label">Total Net Revenue (Excl. PPN)</span>
@@ -780,22 +1826,24 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     />
                   </div>
                   <div className="kpi-foot">
-                    Realisasi terhadap Target Bobot {period.toUpperCase()}
+                    Pembelian terhadap Target Bobot {period.toUpperCase()}
                   </div>
                 </article>
 
-                <article className="kpi-card">
-                  <div className="kpi-head">
-                    <span className="kpi-label">Partisipasi Toko Retail</span>
-                    <span className="kpi-icon emerald">EPR</span>
-                  </div>
-                  <div className="kpi-value mono">
-                    {kpiSummary.achievedCount} / {kpiSummary.totalPartners}
-                  </div>
-                  <div className="kpi-foot">
-                    Toko mencapai Target &ge; 100% pada periode ini
-                  </div>
-                </article>
+                {!isEprUser && (
+                  <article className="kpi-card">
+                    <div className="kpi-head">
+                      <span className="kpi-label">Total EPR</span>
+                      <span className="kpi-icon emerald">EPR</span>
+                    </div>
+                    <div className="kpi-value mono">
+                      {kpiSummary.achievedCount} / {kpiSummary.totalPartners}
+                    </div>
+                    <div className="kpi-foot">
+                      EPR mencapai Target &ge; 100% pada periode ini
+                    </div>
+                  </article>
+                )}
 
                 <article className="kpi-card">
                   <div className="kpi-head">
@@ -815,10 +1863,76 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     Mid-Hi: <span className="mono">{fmtCompact(kpiSummary.totalMidHi)}</span> · Low: <span className="mono">{fmtCompact(kpiSummary.totalLowEnd)}</span>
                   </div>
                 </article>
-              </section>
+              </section>}
 
-              {/* Q3 & Q4 Target Monitoring Section (Target Original) */}
-              <section className="card q-monitoring-card">
+              {isEppUser && (
+                <section className="card">
+                  <div className="card-head">
+                    <div>
+                      <h2>Data Upload Epson Hub</h2>
+                      <p className="card-sub">Apakah Sesuai dengan data yang di Upload di Epson Hub</p>
+                    </div>
+                    <span className={`badge ${eppUploadAudit.status === 'match' ? 'badge-emerald' : eppUploadAudit.status === 'mismatch' ? 'badge-rose' : 'badge-amber'}`}>
+                      {eppUploadAudit.status === 'match' ? 'Sesuai' : eppUploadAudit.status === 'mismatch' ? 'Perlu Diperiksa' : 'Belum Ada Rincian'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-4 mb-3">
+                    <label htmlFor="epp-audit-month" className="text-xs font-semibold text-[var(--text-2)]">Pilih Bulan</label>
+                    <select
+                      id="epp-audit-month"
+                      value={selectedEppAuditRow?.label || ''}
+                      onChange={(event) => setSelectedEppMonthLabel(event.target.value)}
+                      className="text-xs font-semibold bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[var(--text)]"
+                    >
+                      {eppUploadAudit.rows.map((row) => (
+                        <option key={row.label} value={row.label}>{row.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="partner-table">
+                      <thead>
+                        <tr>
+                          <th>Bulan</th>
+                          <th className="num">Consumer</th>
+                          <th className="num">Consumables</th>
+                          <th className="num">Scanner</th>
+                          <th className="num">Dotmatrix</th>
+                          <th className="num">Total Penjualan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedEppAuditRow && (
+                          <tr
+                            key={selectedEppAuditRow.label}
+                            onClick={() => {
+                              setSelectedEppMonthLabel(selectedEppAuditRow.label);
+                              setSelectedEppMonth(selectedEppAuditRow);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                            title="Klik untuk melihat penjualan ke EPR"
+                          >
+                            <td className="font-semibold">{selectedEppAuditRow.label}</td>
+                            <td className="num mono">{fmtRp(selectedEppAuditRow.Consumer)}</td>
+                            <td className="num mono">{fmtRp(selectedEppAuditRow.Consumables)}</td>
+                            <td className="num mono">{fmtRp(selectedEppAuditRow.Scanner)}</td>
+                            <td className="num mono">{fmtRp(selectedEppAuditRow.Dotmatrix)}</td>
+                            <td className="num mono font-bold">{fmtRp(selectedEppAuditRow.total)}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                </section>
+              )}
+
+              {!isEppUser && (
+                <>
+                  {/* Q3 & Q4 Target Monitoring Section (Target Original) */}
+                  <section className="card q-monitoring-card">
                 <div className="card-head">
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -878,23 +1992,29 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       <div className="q-month-card">
                         <span className="q-month-name">Okt 2026</span>
                         <span className="q-month-ach mono">
-                          {fmtCompact(filteredPartners.reduce((acc, curr) => acc + (curr.monthly_total[6] || 0), 0))}
+                          {fmtCompact(kpiSummary.monthlyMetrics[0].actual)}
                         </span>
-                        <span className="q-month-target mono">Target 10%</span>
+                        <span className="q-month-label">Pembelian</span>
+                        <span className="q-month-target mono">Achievement {fmtPct(kpiSummary.monthlyMetrics[0].achievement)}</span>
+                        <span className="q-month-target mono text-rose-600">Kurang {fmtCompact(kpiSummary.monthlyMetrics[0].gap)}</span>
                       </div>
                       <div className="q-month-card">
                         <span className="q-month-name">Nov 2026</span>
                         <span className="q-month-ach mono">
-                          {fmtCompact(filteredPartners.reduce((acc, curr) => acc + (curr.monthly_total[7] || 0), 0))}
+                          {fmtCompact(kpiSummary.monthlyMetrics[1].actual)}
                         </span>
-                        <span className="q-month-target mono">Target 10%</span>
+                        <span className="q-month-label">Pembelian</span>
+                        <span className="q-month-target mono">Achievement {fmtPct(kpiSummary.monthlyMetrics[1].achievement)}</span>
+                        <span className="q-month-target mono text-rose-600">Kurang {fmtCompact(kpiSummary.monthlyMetrics[1].gap)}</span>
                       </div>
                       <div className="q-month-card">
                         <span className="q-month-name">Des 2026</span>
                         <span className="q-month-ach mono">
-                          {fmtCompact(filteredPartners.reduce((acc, curr) => acc + (curr.monthly_total[8] || 0), 0))}
+                          {fmtCompact(kpiSummary.monthlyMetrics[2].actual)}
                         </span>
-                        <span className="q-month-target mono">Target 10%</span>
+                        <span className="q-month-label">Pembelian</span>
+                        <span className="q-month-target mono">Achievement {fmtPct(kpiSummary.monthlyMetrics[2].achievement)}</span>
+                        <span className="q-month-target mono text-rose-600">Kurang {fmtCompact(kpiSummary.monthlyMetrics[2].gap)}</span>
                       </div>
                     </div>
                   </article>
@@ -942,31 +2062,41 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       <div className="q-month-card">
                         <span className="q-month-name">Jan 2027</span>
                         <span className="q-month-ach mono">
-                          {fmtCompact(filteredPartners.reduce((acc, curr) => acc + (curr.monthly_total[9] || 0), 0))}
+                          {fmtCompact(kpiSummary.monthlyMetrics[3].actual)}
                         </span>
-                        <span className="q-month-target mono">Target 6%</span>
+                        <span className="q-month-label">Pembelian</span>
+                        <span className="q-month-target mono">Achievement {fmtPct(kpiSummary.monthlyMetrics[3].achievement)}</span>
+                        <span className="q-month-target mono text-rose-600">Kurang {fmtCompact(kpiSummary.monthlyMetrics[3].gap)}</span>
                       </div>
                       <div className="q-month-card">
                         <span className="q-month-name">Feb 2027</span>
                         <span className="q-month-ach mono">
-                          {fmtCompact(filteredPartners.reduce((acc, curr) => acc + (curr.monthly_total[10] || 0), 0))}
+                          {fmtCompact(kpiSummary.monthlyMetrics[4].actual)}
                         </span>
-                        <span className="q-month-target mono">Target 6%</span>
+                        <span className="q-month-label">Pembelian</span>
+                        <span className="q-month-target mono">Achievement {fmtPct(kpiSummary.monthlyMetrics[4].achievement)}</span>
+                        <span className="q-month-target mono text-rose-600">Kurang {fmtCompact(kpiSummary.monthlyMetrics[4].gap)}</span>
                       </div>
                       <div className="q-month-card">
                         <span className="q-month-name">Mar 2027</span>
                         <span className="q-month-ach mono">
-                          {fmtCompact(filteredPartners.reduce((acc, curr) => acc + (curr.monthly_total[11] || 0), 0))}
+                          {fmtCompact(kpiSummary.monthlyMetrics[5].actual)}
                         </span>
-                        <span className="q-month-target mono">Target 6%</span>
+                        <span className="q-month-label">Pembelian</span>
+                        <span className="q-month-target mono">Achievement {fmtPct(kpiSummary.monthlyMetrics[5].achievement)}</span>
+                        <span className="q-month-target mono text-rose-600">Kurang {fmtCompact(kpiSummary.monthlyMetrics[5].gap)}</span>
                       </div>
                     </div>
                   </article>
                 </div>
-              </section>
+                  </section>
+                </>
+              )}
 
-              {/* Product Category Breakdown Cards */}
-              <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {!isEppUser && (
+                <>
+                  {/* Product Category Breakdown Cards */}
+                  <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="card p-4">
                   <span className="text-2xs uppercase font-bold text-slate-400 block mb-1">Consumer</span>
                   <strong className="text-base font-extrabold mono block text-indigo-600">
@@ -1018,16 +2148,15 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     {((kpiSummary.catDotmatrix / kpiSummary.totalCat) * 100).toFixed(1)}% dari Total
                   </span>
                 </div>
-              </section>
+                  </section>
+                </>
+              )}
 
               {/* Interactive Partner Table */}
               <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
                 <div className="card-head" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
                   <div>
-                    <h2 style={{ fontSize: '15px' }}>Rincian Pencapaian per Toko Retail (EPR)</h2>
-                    <p className="card-sub">
-                      Menampilkan {filteredPartners.length} toko retail · Klik baris toko untuk melihat rincian drawer
-                    </p>
+                    <h2 style={{ fontSize: '15px' }}>Rincian Pencapaian</h2>
                   </div>
 
                   {/* Switcher: Kategori vs Q3/Q4 Breakdown */}
@@ -1047,13 +2176,13 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="rincian-scroll max-h-[60vh] overflow-auto">
                   <table className="partner-table">
                     <thead>
                       <tr>
                         <th>No</th>
                         <th>Kode EPR</th>
-                        <th>Nama Toko</th>
+                        <th>Nama EPR</th>
                         <th>Kota</th>
                         <th>Tier</th>
                         <th className="num">Target ({period.toUpperCase()})</th>
@@ -1093,7 +2222,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                             <td>
                               <span className="partner-name font-bold text-slate-900">{p.name}</span>
                             </td>
-                            <td className="text-xs text-slate-500">{p.city}</td>
+                            <td className="text-xs text-slate-500">{eprCityMap[p.code] || p.city}</td>
                             <td>
                               <span className={`badge tier-${p.tier.toLowerCase()}`}>{p.tier}</span>
                             </td>
@@ -1152,9 +2281,126 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           )}
 
           {/* ======================================================== */}
-          {/* PAGE 2: PAKETAN BERJALAN (BOOSTER UP) */}
+          {/* PAGE 2: PROGRAM BERJALAN */}
           {/* ======================================================== */}
           {activePage === 'program' && (
+            <div className="space-y-6">
+              <div className="card">
+                <div className="card-head">
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="badge badge-emerald">PROGRAM AKTIF</span>
+                      <h2>{data.program_current?.program_name || 'Program Berjalan'}</h2>
+                    </div>
+                    <p className="card-sub">
+                      Periode: {data.program_current?.start} s/d {data.program_current?.end} · Peserta: {data.program_current?.participants.length || 0} EPR
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Pencapaian dihitung dari transaksi pembelian yang sudah lolos verifikasi dan berada di dalam periode program.
+                </p>
+              </div>
+
+              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="card-head" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <h3 style={{ fontSize: '15px' }}>Pencapaian per EPR</h3>
+                    <p className="card-sub">Target paket mengikuti ketentuan program; Pembelian yang di hitung dari MD Lokal: Compumart, Top Distribusi, Raka Perkasa, dan Computa. - Pembelian MD L3251 harus dari PIN</p>
+                  </div>
+                </div>
+                {programAchievementRows.length === 0 ? (
+                  <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '36px', marginBottom: '12px' }}>📊</div>
+                    <p style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                      Belum ada pembelian program
+                    </p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto' }}>
+                      Upload data pembelian V1/V2 yang berisi nama program pada kolom AD/AL untuk menghitung pencapaian.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="partner-table">
+                      <thead>
+                        <tr>
+                          <th>No</th>
+                          <th>EPR</th>
+                          <th>Paket</th>
+                          <th className="num">Target per Kategori</th>
+                          <th className="num">Okt</th>
+                          <th className="num">Nov</th>
+                          <th className="num">Des</th>
+                          <th className="num">Pembelian per Kategori</th>
+                          <th className="num">Kurang per Kategori</th>
+                          <th className="num">Pencapaian</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {programAchievementRows.map((row: any, index: number) => {
+                          const details = row.scheme === 'unit_ink'
+                            ? [
+                                { label: 'Low End', actual: row.actualLowEndQty, target: row.lowEndTargetQty },
+                                { label: 'Mid High', actual: row.actualMidHighQty, target: row.midHighTargetQty },
+                                { label: 'Ink Bottle', actual: row.actualInkBottleQty, target: row.inkBottleTargetQty },
+                              ]
+                            : [
+                                { label: '664/003', actual: row.actualInk664003Qty, target: row.ink664003TargetQty },
+                                { label: 'Lainnya', actual: row.actualConsumablesOtherQty, target: row.consumablesOtherTargetQty },
+                              ];
+                          return (
+                            <tr key={row.code}>
+                              <td className="mono text-slate-400 text-xs">{index + 1}</td>
+                              <td>
+                                <div className="font-bold text-slate-900">{row.name}</div>
+                                <div className="text-2xs text-slate-500 mono">{row.code} · {eprCityMap[row.code] || row.city || '-'}</div>
+                              </td>
+                              <td>
+                                <span className="badge badge-sky">{row.pack_name || '-'}</span>
+                                <div className="text-2xs text-slate-500 mt-1">
+                                  {row.scheme === 'unit_ink' ? 'Unit + Ink Bottle' : '664/003 + Consumables Lainnya'}
+                                </div>
+                              </td>
+                              <td className="num mono" style={{ minWidth: '145px' }}>
+                                <div className="font-bold">Total {row.targetQty.toLocaleString('id-ID')}</div>
+                                {details.map((detail) => (
+                                  <div key={detail.label} className="text-2xs text-slate-500">{detail.label}: {detail.target.toLocaleString('id-ID')}</div>
+                                ))}
+                              </td>
+                              <td className="num mono">{row.octQty.toLocaleString('id-ID')}</td>
+                              <td className="num mono">{row.novQty.toLocaleString('id-ID')}</td>
+                              <td className="num mono">{row.decQty.toLocaleString('id-ID')}</td>
+                              <td className="num mono" style={{ minWidth: '145px' }}>
+                                <div className="font-bold">Total {row.actualQty.toLocaleString('id-ID')}</div>
+                                {details.map((detail) => (
+                                  <div key={detail.label} className="text-2xs text-slate-500">{detail.label}: {detail.actual.toLocaleString('id-ID')}</div>
+                                ))}
+                                {row.actualUnclassifiedUnitQty > 0 && <div className="text-2xs text-amber-600">Belum terklasifikasi: {row.actualUnclassifiedUnitQty.toLocaleString('id-ID')}</div>}
+                              </td>
+                              <td className="num mono text-rose-600" style={{ minWidth: '145px' }}>
+                                <div className="font-bold">Total {row.gap.toLocaleString('id-ID')}</div>
+                                {details.map((detail) => (
+                                  <div key={detail.label} className="text-2xs">{detail.label}: {Math.max(0, detail.target - detail.actual).toLocaleString('id-ID')}</div>
+                                ))}
+                              </td>
+                              <td className="num">
+                                <span className={`badge ${row.achievement >= 1 ? 'badge-emerald' : 'badge-amber'}`}>
+                                  {fmtPct(row.achievement)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Legacy Booster Up layout kept unreachable for data compatibility. */}
+          {false && activePage === 'program' && (
             <div className="space-y-6">
               {/* Program Header */}
               <div className="card">
@@ -1201,11 +2447,51 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                 </div>
               </div>
 
+              {uploadedProgramSummaries.length > 0 && (
+                <div className="card">
+                  <div className="card-head">
+                    <div>
+                      <h3 style={{ fontSize: '15px' }}>Program Berjalan dari Data Upload</h3>
+                      <p className="card-sub">Pembelian terverifikasi; master periode, peserta, dan ketentuan tetap read-only.</p>
+                    </div>
+                  </div>
+                  <div className="q-cards-grid">
+                    {uploadedProgramSummaries.map((summary: any) => (
+                      <div className="q-quarter-card" key={summary.name}>
+                        <div className="q-quarter-head">
+                          <div className="q-quarter-title">
+                            <span className="badge badge-emerald">PROGRAM AKTIF</span>
+                            <h3>{summary.name}</h3>
+                            <span className="q-quarter-weight">Periode: {summary.period}</span>
+                          </div>
+                          <div className="q-quarter-ach">
+                            <strong>{summary.activeParticipantCount.toLocaleString('id-ID')}</strong>
+                            <span className="q-quarter-weight">peserta aktif</span>
+                          </div>
+                        </div>
+                        <div className="q-quarter-metrics">
+                          <div className="q-metric-item"><span>Peserta master</span><strong>{summary.eligibleParticipants ? summary.eligibleParticipants.toLocaleString('id-ID') : '-'}</strong></div>
+                          <div className="q-metric-item"><span>Transaksi</span><strong>{summary.transactions.toLocaleString('id-ID')}</strong></div>
+                          <div className="q-metric-item"><span>Qty</span><strong>{summary.totalQty.toLocaleString('id-ID')}</strong></div>
+                          <div className="q-metric-item"><span>Nilai</span><strong>{fmtRp(summary.totalValue)}</strong></div>
+                        </div>
+                        <div className="text-2xs text-slate-500 mt-3">
+                          <strong className="text-slate-700">Ketentuan:</strong>
+                          <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                            {summary.requirements.map((requirement: string) => <li key={requirement}>{requirement}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Participants Table */}
               <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                 <div className="card-head" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
                   <div>
-                    <h3 style={{ fontSize: '15px' }}>Daftar Toko Retail Peserta Paket Booster</h3>
+                    <h3 style={{ fontSize: '15px' }}>Daftar EPR Peserta Paket Booster</h3>
                     <p className="card-sub">Monitoring pencapaian unit &amp; botol tinta terverifikasi</p>
                   </div>
                 </div>
@@ -1220,12 +2506,50 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       )
                     : (data.program_partners || []);
 
+                  // Jika master peserta Booster Up kosong, tampilkan program
+                  // berjalan yang berasal langsung dari upload V1/V2.
+                  if (progList.length === 0 && uploadedProgramRows.length > 0) {
+                    return (
+                      <div className="overflow-x-auto">
+                        <table className="partner-table">
+                          <thead>
+                            <tr>
+                              <th>No</th>
+                              <th>EPR</th>
+                              <th>Program Berjalan</th>
+                              <th className="num">Transaksi</th>
+                              <th className="num">Qty</th>
+                              <th className="num">Nilai</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {uploadedProgramRows.map((row, idx) => (
+                              <tr key={`${row.code}-${row.program}`}>
+                                <td className="mono text-slate-400 text-xs">{idx + 1}</td>
+                                <td>
+                                  <div className="font-bold text-slate-900">{row.name}</div>
+                                  <div className="text-2xs text-slate-500 mono">{row.code} · {eprCityMap[row.code] || row.city || '-'} · AE: {row.am || '-'}</div>
+                                </td>
+                                <td><span className="badge badge-sky">{row.program}</span></td>
+                                <td className="num mono">{row.tx.toLocaleString('id-ID')}</td>
+                                <td className="num mono">{row.qty.toLocaleString('id-ID')}</td>
+                                <td className="num mono">{fmtRp(row.total)}</td>
+                                <td><span className="badge badge-amber">Berjalan</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  }
+
                   if (isEprUser && progList.length === 0) {
                     return (
                       <div style={{ padding: '48px 24px', textAlign: 'center' }}>
                         <div style={{ fontSize: '36px', marginBottom: '12px' }}>📋</div>
                         <p style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                          Toko Anda Tidak Terdaftar sebagai Peserta Paket Booster Up Q3 FY26
+                          EPR Anda Tidak Terdaftar sebagai Peserta Paket Booster Up Q3 FY26
                         </p>
                         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto' }}>
                           Hubungi AM Anda untuk informasi program berikutnya.
@@ -1240,7 +2564,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                         <thead>
                           <tr>
                             <th>No</th>
-                            <th>Toko Retail</th>
+                            <th>EPR</th>
                             <th>Paket &amp; Target</th>
                             <th className="num">Okt 2026</th>
                             <th className="num">Nov 2026</th>
@@ -1381,25 +2705,16 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           )}
 
           {/* ======================================================== */}
-          {/* PAGE 3: KONTRIBUSI EPP & AUDIT (KHUSUS ADMIN) */}
+          {/* PAGE 3: KONTRIBUSI EPP (KHUSUS ADMIN) */}
           {/* ======================================================== */}
           {activePage === 'audit' && isAdmin && (
             <div className="space-y-6">
               <div className="card">
                 <div className="card-head">
                   <div>
-                    <h2>Kontribusi Partner Premier (EPP) &amp; Status Audit</h2>
-                    <p className="card-sub">
-                      {isAdmin
-                        ? 'Rekapitulasi distribusi supply EPP ke seluruh toko retail EPR FY26'
-                        : 'Ringkasan kontribusi supply Anda ke toko retail EPR FY26 · Identitas EPP lain dirahasiakan'}
-                    </p>
+                    <h2>Kontribusi EPP</h2>
+                    <p className="card-sub">Rekapitulasi distribusi supply EPP ke seluruh EPR FY26</p>
                   </div>
-                  {!isAdmin && (
-                    <span className="badge badge-amber" style={{ alignSelf: 'flex-start' }}>
-                      🔒 Confidential — Identitas EPP lain tersembunyi
-                    </span>
-                  )}
                 </div>
 
                 <div className="overflow-x-auto mt-4">
@@ -1411,23 +2726,54 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                         <th>Nama EPP</th>
                         <th>Kota</th>
                         <th className="num">Total Transaksi</th>
-                        <th className="num">Toko Terlayani</th>
-                        <th className="num">Total Omset Pembelian</th>
+                        <th className="num">EPR</th>
+                        <th>Kategori Produk</th>
+                        <th className="num">Total Penjualan ke EPR</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const list = data.epp_summary || [];
+                        const list = eppContributionRows;
+                        if (list.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={8} className="text-center text-slate-400 py-8">
+                                Belum ada data kontribusi EPP.
+                              </td>
+                            </tr>
+                          );
+                        }
                         // Admin: tampilkan semua lengkap
                         if (isAdmin) {
                           return list.map((epp, idx) => (
                             <tr key={epp.code || idx}>
                               <td className="mono text-slate-400 text-xs">{idx + 1}</td>
-                              <td><span className="badge badge-emerald mono">{epp.code}</span></td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="badge badge-emerald mono"
+                                  onClick={() => setSelectedEppContribution(epp)}
+                                  title="Lihat daftar EPR pembeli"
+                                  style={{ cursor: 'pointer', border: 0 }}
+                                >
+                                  {epp.code}
+                                </button>
+                              </td>
                               <td className="font-bold text-slate-900">{epp.name}</td>
-                              <td className="text-xs text-slate-500">{epp.city}</td>
+                              <td className="text-xs text-slate-500">{eppCityMap[String(epp.code || '').trim().toUpperCase()] || epp.city}</td>
                               <td className="num mono">{epp.tx_count ?? epp.tx ?? '-'}</td>
                               <td className="num mono font-bold text-indigo-600">{epp.partner_count ?? '-'}</td>
+                              <td>
+                                <div className="flex flex-wrap gap-1">
+                                  {Object.entries(epp.cats || {})
+                                    .filter(([, amount]) => Number(amount || 0) > 0)
+                                    .map(([category, amount]) => (
+                                      <span key={category} className="badge badge-sky" style={{ fontSize: '10px' }}>
+                                        {category}: {fmtRp(Number(amount))}
+                                      </span>
+                                    ))}
+                                </div>
+                              </td>
                               <td className="num mono font-bold text-slate-900">{fmtRp(epp.total)}</td>
                             </tr>
                           ));
@@ -1457,9 +2803,10 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                                   {epp.name}
                                   <span className="badge badge-amber ml-2" style={{ fontSize: '10px' }}>Akun Anda</span>
                                 </td>
-                                <td className="text-xs text-slate-500">{epp.city}</td>
+                                <td className="text-xs text-slate-500">{eppCityMap[String(epp.code || '').trim().toUpperCase()] || epp.city}</td>
                                 <td className="num mono">{epp.tx_count ?? epp.tx ?? '-'}</td>
                                 <td className="num mono font-bold text-indigo-600">{epp.partner_count ?? '-'}</td>
+                                <td>—</td>
                                 <td className="num mono font-bold text-slate-900">{fmtRp(epp.total)}</td>
                               </tr>
                             );
@@ -1474,6 +2821,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                                 <td className="text-xs text-slate-400">—</td>
                                 <td className="num mono text-slate-400">***</td>
                                 <td className="num mono text-slate-400">***</td>
+                                <td className="text-slate-400">—</td>
                                 <td className="num mono text-slate-400">***</td>
                               </tr>
                             );
@@ -1485,36 +2833,207 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                 </div>
               </div>
 
-              {/* Audit Summary Box */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="card p-4">
-                  <span className="text-2xs uppercase font-bold text-slate-400 block mb-1">Transaksi Terverifikasi</span>
-                  <strong className="text-xl font-bold mono text-emerald-600">
-                    {data.audit?.verified_tx?.toLocaleString('id-ID') || '4.180'}
-                  </strong>
-                  <span className="text-2xs text-slate-500 mt-1 block">Tercatat valid di database FY26</span>
-                </div>
-
-                <div className="card p-4">
-                  <span className="text-2xs uppercase font-bold text-slate-400 block mb-1">Transaksi Ditolak</span>
-                  <strong className="text-xl font-bold mono text-rose-600">
-                    {data.audit?.rejected_tx?.toLocaleString('id-ID') || '0'}
-                  </strong>
-                  <span className="text-2xs text-slate-500 mt-1 block">Kembar / Di Luar Aturan Resmi</span>
-                </div>
-
-                <div className="card p-4">
-                  <span className="text-2xs uppercase font-bold text-slate-400 block mb-1">Data Source File</span>
-                  <strong className="text-sm font-bold text-slate-900 block truncate">
-                    EPR FY26 Verified Database
-                  </strong>
-                  <span className="text-2xs text-slate-500 mt-1 block">Update Terakhir: {data.meta?.last_updated || 'November 2026'}</span>
-                </div>
-              </div>
             </div>
           )}
         </main>
       </div>
+
+      {/* Modal Daftar EPR Pembeli dari EPP */}
+      {selectedEppContribution && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          onClick={() => setSelectedEppContribution(null)}
+        >
+          <div
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="p-4 px-5 border-b border-[var(--border)] flex items-start justify-between gap-4">
+              <div>
+                <span className="badge badge-emerald mono">{selectedEppContribution.code}</span>
+                <h3 className="text-base font-bold text-[var(--text)] mt-2">{selectedEppContribution.name}</h3>
+                <p className="text-xs text-[var(--text-3)] mt-1">
+                  {eppCityMap[String(selectedEppContribution.code || '').trim().toUpperCase()] || selectedEppContribution.city || '-'} · {selectedEppContribution.partner_details?.length || 0} EPR membeli dari EPP ini
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEppContribution(null)}
+                className="btn btn-icon"
+                title="Tutup daftar EPR"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 px-5 max-h-[60vh] overflow-y-auto">
+              {selectedEppContribution.partner_details?.length ? (
+                <table className="partner-table">
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>Kode EPR</th>
+                      <th>Nama EPR</th>
+                      <th>Kota</th>
+                      <th className="num">Pembelian</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...selectedEppContribution.partner_details]
+                      .sort((a: any, b: any) => b.total - a.total)
+                      .map((partner: any, index: number) => (
+                        <tr key={partner.code}>
+                          <td className="mono text-xs text-slate-400">{index + 1}</td>
+                          <td><span className="badge badge-indigo mono">{partner.code}</span></td>
+                          <td className="font-bold text-slate-900">{partner.name}</td>
+                          <td className="text-xs text-slate-500">{eprCityMap[partner.code] || partner.city || '-'}</td>
+                          <td className="num mono font-bold">{fmtRp(partner.total)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-8">Belum ada rincian EPR untuk EPP ini.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Penjualan EPP ke EPR per Bulan */}
+      {isEppUser && selectedEppMonth && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          onClick={() => setSelectedEppMonth(null)}
+        >
+          <div
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="p-4 px-5 border-b border-[var(--border)] flex items-start justify-between gap-4">
+              <div>
+                <span className="badge badge-emerald">{selectedEppMonth.label}</span>
+                <h3 className="text-base font-bold text-[var(--text)] mt-2">
+                  Penjualan {eppContributionRows.find((row: any) => row.code === ownEppCode)?.name || cleanUsername.toUpperCase()} ke EPR
+                </h3>
+                <p className="text-xs text-[var(--text-3)] mt-1">Daftar EPR, Qty, dan kategori produk pada bulan terpilih</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEppMonth(null)}
+                className="btn btn-icon"
+                title="Tutup rincian penjualan"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 px-5 max-h-[65vh] overflow-y-auto">
+              {selectedEppMonth.eprDetails?.length ? (
+                <table className="partner-table">
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>Kode EPR</th>
+                      <th>Nama EPR</th>
+                      <th>Kategori Produk</th>
+                      <th className="num">Qty</th>
+                      <th className="num">Total Penjualan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEppMonth.eprDetails.map((detail: any, index: number) => (
+                      <tr key={detail.code}>
+                        <td className="mono text-xs text-slate-400">{index + 1}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="badge badge-indigo mono"
+                            onClick={() => setSelectedEppEpr({ ...detail, month: selectedEppMonth.label })}
+                            style={{ cursor: 'pointer', border: 0 }}
+                            title="Lihat rincian SKU dan kategori produk"
+                          >
+                            {detail.code}
+                          </button>
+                        </td>
+                        <td className="font-bold text-slate-900">{detail.name}</td>
+                        <td>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(detail.categories || {}).map(([category, qty]) => (
+                              <span key={category} className="badge badge-sky text-2xs">
+                                {category}: {Number(qty).toLocaleString('id-ID')}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="num mono font-bold">{Number(detail.qty || 0).toLocaleString('id-ID')}</td>
+                        <td className="num mono font-bold">{fmtRp(detail.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-8">Belum ada penjualan ke EPR pada bulan ini.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rincian Produk per EPR */}
+      {isEppUser && selectedEppEpr && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+          onClick={() => setSelectedEppEpr(null)}
+        >
+          <div
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="p-4 px-5 border-b border-[var(--border)] flex items-start justify-between gap-4">
+              <div>
+                <span className="badge badge-indigo mono">{selectedEppEpr.code}</span>
+                <h3 className="text-base font-bold text-[var(--text)] mt-2">{selectedEppEpr.name}</h3>
+                <p className="text-xs text-[var(--text-3)] mt-1">Rincian kategori produk · {selectedEppEpr.month}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEppEpr(null)}
+                className="btn btn-icon"
+                title="Tutup rincian produk"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 px-5 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-4">
+                {Object.entries(selectedEppEpr.products || {}).map(([category, products]) => (
+                  <div key={category} className="border border-[var(--border)] rounded-xl overflow-hidden">
+                    <div className="px-3 py-2 bg-[var(--surface-2)] text-xs font-bold text-[var(--text)]">{category}</div>
+                    <div className="divide-y divide-[var(--border)]">
+                      {Object.entries(products as Record<string, { qty: number; dates: string[] }>).map(([model, detail]) => {
+                        const skuDescription = productCategoryMap[String(model).trim().toUpperCase()]?.description || model;
+                        const invoiceDates = (detail.dates || []).map((date) => new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })).join(', ');
+                        return (
+                        <div key={model} className="px-3 py-2 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-[var(--text-2)] block">{skuDescription}</span>
+                            <span className="text-2xs text-[var(--text-3)] block mt-0.5">Invoice: {invoiceDates || '-'}</span>
+                          </div>
+                          <strong className="mono text-[var(--text)]">{Number(detail.qty || 0).toLocaleString('id-ID')} unit</strong>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Slide-Out Drawer Detail Partner */}
       {selectedPartner && (
@@ -1523,13 +3042,13 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
             className="drawer-backdrop show" 
             onClick={() => setSelectedPartner(null)} 
           />
-          <aside className="drawer show" aria-label="Detail Partner Drawer">
+          <aside className="drawer open" aria-label="Detail Partner Drawer">
             <div className="drawer-head">
               <div>
                 <span className="badge badge-indigo mono">{selectedPartner.code}</span>
                 <h3 className="text-lg font-bold text-slate-900 mt-1">{selectedPartner.name}</h3>
                 <p className="text-xs text-slate-500">
-                  Kota: {selectedPartner.city} • Tier: {selectedPartner.tier} • AM: {selectedPartner.am}
+                  Kota: {eprCityMap[selectedPartner.code] || selectedPartner.city} • Tier: {selectedPartner.tier} • AM: {selectedPartner.am}
                 </p>
               </div>
               <button 
@@ -1587,7 +3106,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
               {/* 12 Bulan Pembelian Terverifikasi */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Realisasi Pembelian 12 Bulan (Terverifikasi)
+                  Pembelian 12 Bulan (Terverifikasi)
                 </h4>
                 <div className="max-h-56 overflow-y-auto border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] text-xs">
                   {[
@@ -1632,23 +3151,40 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                 </div>
               </div>
 
-              {/* EPP Sources: Only shown to Admin; neutralized for EPP/EPR */}
-              {isAdmin && (
+              {/* EPP Sources and Product Categories: shown to Admin and the own EPR */}
+              {(isAdmin || isEprUser) && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    Distribusi Pemasok EPP (Khusus Admin)
+                    Pembelian dari EPP &amp; Kategori Produk
                   </h4>
-                  <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] text-xs">
-                    {(selectedPartner.epp_sources || []).map((epp, idx) => (
-                      <div key={idx} className="p-2.5 flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-slate-900 block">{epp.name}</span>
-                          <span className="text-2xs text-slate-400">{epp.code} · {epp.city} ({epp.tx} transaksi)</span>
+                  {(selectedPartner.epp_sources || []).length === 0 ? (
+                    <div className="border border-[var(--border)] rounded-xl p-3 text-xs text-slate-400">
+                      Belum ada pembelian terverifikasi dari EPP.
+                    </div>
+                  ) : (
+                    <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] text-xs">
+                      {(selectedPartner.epp_sources || []).map((epp, idx) => (
+                        <div key={idx} className="p-3">
+                          <div className="flex justify-between items-start gap-3">
+                            <div>
+                              <span className="font-bold text-slate-900 block">{epp.name}</span>
+                              <span className="text-2xs text-slate-400">{epp.code} · {eppCityMap[String(epp.code || '').trim().toUpperCase()] || epp.city} · {epp.tx} transaksi</span>
+                            </div>
+                            <span className="mono font-bold text-slate-900 whitespace-nowrap">{fmtRp(epp.total)}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {Object.entries(epp.cats || {})
+                              .filter(([, amount]) => Number(amount || 0) > 0)
+                              .map(([category, amount]) => (
+                                <span key={category} className="badge badge-sky" style={{ fontSize: '10px' }}>
+                                  {category}: {fmtRp(Number(amount))}
+                                </span>
+                              ))}
+                          </div>
                         </div>
-                        <span className="mono font-bold text-slate-900">{fmtRp(epp.total)}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1694,9 +3230,10 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                 </div>
                 <ul className="list-disc pl-4 space-y-0.5 text-slate-500">
                   <li><strong>Template V3 (Report Retail Q*)</strong>: Rebate Category &amp; Total Price (Excl. PPN).</li>
-                  <li><strong>Template V2 (Partner Hub) &amp; V1 (Sheet1)</strong>: Gross / 1,11 (Excl. PPN 11%).</li>
+                  <li><strong>Template V1 (Sheet1) &amp; V2 (Partner Hub)</strong>: MIN(Harga EPP, Harga Database) × Qty ÷ 1,11.</li>
+                  <li><strong>Program Berjalan</strong>: V1 membaca AD (Remarks), V2 membaca AL (Program).</li>
                   <li><strong>Sheet RETAIL</strong>: Rekapitulasi bulanan 4 kategori.</li>
-                  <li><strong>Deduplikasi Aktif</strong>: Baris kembar &amp; luar master otomatis ditolak.</li>
+                  <li><strong>Deduplikasi Aktif</strong>: Invoice, tanggal, SKU, qty, harga, dan transaksi kembar otomatis ditolak.</li>
                 </ul>
               </div>
 
@@ -1801,15 +3338,29 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
             {/* Footer Modal */}
             <div className="p-3 px-5 bg-[var(--surface-2)] border-t border-[var(--border)] flex items-center justify-between shrink-0">
-              <button 
-                type="button"
-                onClick={handleResetToDefaultData}
-                className="text-2xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-                title="Hapus data custom dan gunakan data bawaan sistem"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Reset Data</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSyncExistingData}
+                  disabled={sharedSyncLoading || uploadLoading}
+                  className="text-2xs font-semibold text-emerald-600 hover:text-emerald-700 disabled:opacity-50 flex items-center gap-1"
+                  title="Kirim data existing ke dashboard EPP/EPR tanpa upload ulang"
+                >
+                  <RefreshCw className={`w-3 h-3 ${sharedSyncLoading ? 'animate-spin' : ''}`} />
+                  <span>{sharedSyncLoading ? 'Sinkron...' : 'Sinkronkan Existing'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetToDefaultData}
+                  disabled={sharedSyncLoading || uploadLoading}
+                  className="text-2xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50 flex items-center gap-1"
+                  title="Hapus data custom dan gunakan data bawaan sistem"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Reset Data</span>
+                </button>
+              </div>
 
               <button 
                 type="button"
@@ -1823,5 +3374,68 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         </div>
       )}
     </div>
+
+    {/* Laporan khusus cetak / Share PDF. Tidak tampil pada layar dashboard. */}
+    <div className="pdf-report">
+      <div className="pdf-head">
+        <div>
+          <h1>Pencapaian per EPR</h1>
+          <div className="pdf-meta">Dashboard EPP &amp; EPR · Periode {period.toUpperCase()} · {new Date().toLocaleDateString('id-ID')}</div>
+        </div>
+        <div className="pdf-meta">Epson FY26</div>
+      </div>
+
+      <div className="pdf-sec">
+        <h3>Pencapaian per EPR</h3>
+        <table className="pdf-table">
+          <thead>
+            <tr>
+              <th>Nama EPR</th>
+              <th>Total Pembelian per Kategori</th>
+              <th className="num">Kekurangan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPartners.map((partner) => {
+              const { gap } = getPartnerPeriodMetrics(partner);
+              const categoryTotals = getPartnerPeriodCategoryTotals(partner);
+              const categories = [
+                ['Consumer', categoryTotals.Consumer],
+                ['Consumables', categoryTotals.Consumables],
+                ['Scanner', categoryTotals.Scanner],
+                ['Dotmatrix', categoryTotals.Dotmatrix],
+              ];
+              return (
+                <tr key={partner.code}>
+                  <td>
+                    <strong>{partner.name}</strong>
+                    <div>{partner.code}</div>
+                  </td>
+                  <td>
+                    <div className="pdf-category-list">
+                      {categories.map(([category, amount]) => (
+                        <span key={category as string}>
+                          <strong>{category}:</strong> {fmtRp(Number(amount))}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className={`num ${gap > 0 ? 'pdf-gap-warn' : 'pdf-gap-ok'}`}>
+                    {gap > 0 ? fmtRp(gap) : 'Achieved'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pdf-foot">
+        <span>{filteredPartners.length} EPR</span>
+        <span className="pdf-credit">EPR Achievement Dashboard</span>
+        <span>Data pembelian terverifikasi</span>
+      </div>
+    </div>
+    </>
   );
 };

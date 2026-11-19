@@ -71,7 +71,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
 
       const extractedUsername = user.email?.split('@')[0]?.toLowerCase();
 
-      // 1. Ambil data Toko: cocokkan user_id atau username email
+      // 1. Ambil data EPR: cocokkan user_id atau username email
       let { data: storeData, error: storeError } = await supabase
         .from('epr_stores')
         .select('*')
@@ -93,7 +93,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
 
       setStore(storeData);
 
-      // 3. Ambil catatan penjualan jika toko ditemukan
+      // 3. Ambil catatan penjualan jika EPR ditemukan
       if (storeData) {
         const { data: salesData } = await supabase
           .from('sales_records')
@@ -153,7 +153,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3 text-slate-500">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <p className="text-sm">Memuat data dashboard toko...</p>
+          <p className="text-sm">Memuat data dashboard EPR...</p>
         </div>
       </div>
     );
@@ -164,9 +164,9 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center max-w-md w-full">
           <Building2 className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-slate-800 mb-2">Toko Belum Ditautkan</h2>
+          <h2 className="text-lg font-bold text-slate-800 mb-2">EPR Belum Ditautkan</h2>
           <p className="text-sm text-slate-600 mb-6">
-            Akun ini ({userEmail}) belum terhubung dengan data toko EPR. Silakan hubungi Account Manager Anda.
+            Akun ini ({userEmail}) belum terhubung dengan data EPR. Silakan hubungi Account Manager Anda.
           </p>
           <button
             onClick={onLogout}
@@ -270,7 +270,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                 />
               </div>
               <div className="mt-3 flex justify-between text-xs text-slate-500">
-                <span>Realisasi: <strong className="text-slate-800">{formatRupiah(totalActualSales)}</strong></span>
+                <span>Pembelian: <strong className="text-slate-800">{formatRupiah(totalActualSales)}</strong></span>
               </div>
             </div>
           </div>
@@ -380,9 +380,9 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
         <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Tracking Realisasi Penjualan Bulanan</h3>
+              <h3 className="text-lg font-bold text-slate-900">Tracking Pembelian Bulanan</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Pantau realisasi pembelian terverifikasi toko Anda setiap bulan
+                Pantau pembelian terverifikasi EPR Anda setiap bulan
               </p>
             </div>
           </div>
@@ -393,7 +393,7 @@ export const Dashboard: React.FC<Props> = ({ userEmail, onLogout, previewStore }
                 <tr>
                   <th className="py-3.5 px-6">Bulan</th>
                   <th className="py-3.5 px-6">Target Bulanan</th>
-                  <th className="py-3.5 px-6">Realisasi Aktual</th>
+                  <th className="py-3.5 px-6">Pembelian Aktual</th>
                   <th className="py-3.5 px-6">% Pencapaian</th>
                   <th className="py-3.5 px-6 text-right">Status Capaian</th>
                 </tr>

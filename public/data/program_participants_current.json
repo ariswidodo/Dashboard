@@ -1,0 +1,28 @@
+{
+  "program_id": "Q3-BOOSTER-UP-2026",
+  "program_name": "Q3 Booster Up",
+  "start": "2026-10-01",
+  "end": "2026-12-31",
+  "participants": [
+    {"code":"EPR-1002","name":"AL BUMI IT STORE","area":"JATENG","city":"KENDAL","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-1628","name":"CV ARTADINATA PERKASA ABADI","area":"JATENG","city":"JEPARA","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-1967","name":"CV DIAMOND INDO","area":"JATENG","city":"SEMARANG","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-1966","name":"CV MITRA SARANA TEKNIK","area":"JATENG","city":"AMBARAWA","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-1999","name":"CV NAFIRI","area":"JATENG","city":"SEMARANG","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-0038","name":"SINAR JAYA COMPUTER","area":"JATENG","city":"KUDUS","tier":"MOON","pack_name":"MOON Consumer"},
+    {"code":"EPR-1005","name":"CV PRIBUMI JAYA KOMPUTAMA","area":"JATENG","city":"PATI","tier":"MOON","pack_name":"MOON Consumer"},
+    {"code":"EPR-0650","name":"CV RAJA PRINT SOLUTION","area":"JATENG","city":"SEMARANG","tier":"STAR","pack_name":"STAR Consumer"},
+    {"code":"EPR-1410","name":"CV SAFRINDO PERKASA","area":"JATENG","city":"JEPARA","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-1816","name":"CV SALAM JAYA KOMPUTINDO","area":"JATENG","city":"KUDUS","tier":"EARTH","pack_name":"STAR Consumer"},
+    {"code":"EPR-1197","name":"CV YESTOYA ABADI","area":"JATENG","city":"SEMARANG","tier":"STAR","pack_name":"SUN Consumer"},
+    {"code":"EPR-1906","name":"ELLITE COMPUTER WELERI","area":"JATENG","city":"WELERI","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-0733","name":"MICRO PRINTER","area":"JATENG","city":"PATI","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-0267","name":"PT HARRISMA PRATAMAJAYA","area":"JATENG","city":"SEMARANG","tier":"SUN","pack_name":"SUN Consumer"},
+    {"code":"EPR-0054","name":"PT HETERO NIAGA GLOBAL","area":"JATENG","city":"SEMARANG","tier":"SUN","pack_name":"SUN Consumer"},
+    {"code":"EPR-1413","name":"PT INFOKOM PUTRA KENCANA","area":"JATENG","city":"SEMARANG","tier":"SUN","pack_name":"SUN Consumer"},
+    {"code":"EPR-0881","name":"UD PIXEL","area":"JATENG","city":"SEMARANG","tier":"CRESCENT","pack_name":"MOON Consumer"},
+    {"code":"EPR-2013","name":"CV JAYA MAKMUR STATIONARY","area":"JATENG","city":"SEMARANG","tier":"CRESCENT","pack_name":"MOON Consumables"},
+    {"code":"EPR-1768","name":"CV KARYA HIDUP MULYA","area":"JATENG","city":"SEMARANG","tier":"SUN","pack_name":"SUN Consumables"},
+    {"code":"EPR-1845","name":"CV BUMI RAYA INDONESIA","area":"JATENG","city":"SEMARANG","tier":"CRESCENT","pack_name":"MOON Consumer"}
+  ]
+}

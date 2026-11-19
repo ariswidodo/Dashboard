@@ -107,5 +107,27 @@ export interface EprFullData {
   epp_summary?: EppSummaryItem[];
   program_items?: any[];
   program_partners?: ProgramPartner[];
+  /** Read-only program definitions; uploads only add actual transaction data. */
+  program_rules?: Record<string, any>;
+  program_current?: {
+    program_id: string;
+    program_name: string;
+    start: string;
+    end: string;
+    participants: Array<{
+      code: string;
+      name: string;
+      area?: string;
+      city?: string;
+      tier?: string;
+      pack_name?: string;
+    }>;
+  };
+  /**
+   * Canonical transaction fingerprints that have already passed verification.
+   * Kept separately from the partner aggregates so a later upload cannot add
+   * the same invoice line a second time.
+   */
+  verified_transaction_keys?: string[];
   partners: PartnerData[];
 }

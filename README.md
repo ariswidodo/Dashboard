@@ -1,6 +1,6 @@
 # EPR Achievement Dashboard FY26
 
-> **Portal monitoring multi-tenant** pencapaian target penjualan seluruh toko retail Epson Partner Retail (EPR) dan Partner Premier (EPP) FY26 — tampilan Power BI Analytics, role-based access, strict read-only untuk partner, dan tracking bulanan program paket berjalan.
+> **Portal monitoring multi-tenant** pencapaian target penjualan Epson Partner Retail (EPR) dan Epson Partner Premier (EPP) FY26 — tampilan Power BI Analytics, role-based access, strict read-only untuk partner, verifikasi transaksi, dan tracking bulanan program berjalan.
 
 ---
 
@@ -9,9 +9,12 @@
 | | URL / Sumber |
 |---|---|
 | **Referensi dashboard** | [ariswidodo.github.io/EPR](https://ariswidodo.github.io/EPR/) |
-| **Data Pembelian Utama** | GitHub repo `ariswidodo/EPR` → `public/data/epr_data.json` |
-| **Data Paket Berjalan (Booster Up)** | GitHub repo `ariswidodo/Q3-Booster-Up` → `public/data/program_partners.json` |
+| **Data Master & Baseline** | `public/data/epr_data.json`, `epr_master.csv`, `epp_master.csv` |
+| **Data Program Berjalan** | `public/data/program_rules.json`, `program_participants_current.json`, `booster_consumables_sku.csv` |
+| **Database Harga SKU** | `public/data/sku_price_database.json` |
 | **Supabase project** | `nhuaoaujwfnpymhfgnbf.supabase.co` |
+
+> Catatan: `epr_data.json` adalah baseline master dan target. Data pembelian hasil upload disimpan melalui ledger transaksi dan disinkronkan ke Supabase agar Dashboard Admin, EPP, dan EPR membaca sumber yang sama.
 
 ---
 
@@ -21,25 +24,23 @@
 Login  ──► Deteksi peran otomatis (Supabase Auth)
                │
                ├─► ADMIN  (admin@epr26.id)
-               │     • Tab 1 – Overview & Target H2: lihat & filter 24 toko EPR
-               │     • Tab 2 – Paketan Berjalan: 82 peserta Booster Up (ARIS, HERDIAN, SIGIT)
-               │               dengan tracking bulanan (Okt, Nov, Des, Sudah Beli, Kurang Berapa)
-               │     • Tab 3 – Kontribusi EPP & Audit: seluruh 19 EPP nasional lengkap
-               │     • Drawer inspeksi detail toko (termasuk supplier EPP)
+               │     • Overview: lihat & filter seluruh EPR
+               │     • Program Berjalan: peserta, ketentuan, pembelian bulanan, dan gap
+               │     • Kontribusi EPP: rekap penjualan EPP ke EPR dan rincian EPR
+               │     • Upload, verifikasi, reset, dan sinkronisasi data transaksi
                │
                ├─► EPP  (computa, topdistribusi, compumart, rakaperkasa)
-               │     • Tab 1 – Overview: monitoring 24 toko EPR (read-only)
-               │     • Tab 2 – Paketan Berjalan: monitoring 82 peserta Booster Up lengkap
-               │               dengan tracking bulanan (Okt, Nov, Des, Sudah Beli, Kurang Berapa)
-               │     • Tab 3 – DIHILANGKAN (hanya untuk Admin demi kerahasiaan)
+               │     • Overview: monitoring seluruh EPR (read-only)
+               │     • Program Berjalan: pencapaian EPR yang membeli dari EPP tersebut
+               │     • Data Upload Epson Hub: validasi bulanan per EPR, kategori, SKU, qty, dan tanggal invoice
+               │     • Kontribusi EPP tidak ditampilkan pada akun EPP lain
                │     • Domain login: username@epp26.id
                │
                └─► EPR  (sinarjaya, harrisma, albumi, dst…)
-                     • Tab 1 – Overview: terisolasi strictly hanya data TOKO SENDIRI
-                     • Tab 2 – Paketan Berjalan: terisolasi paket Booster Up TOKO SENDIRI
-                               dengan tracking bulanan (Sudah Beli berapa, Kurang berapa)
-                     • Tab 3 – DIHILANGKAN
-                     • Subtitle topbar otomatis menampilkan nama toko yang sesuai
+                     • Overview: terisolasi strictly hanya data EPR sendiri
+                     • Program Berjalan: hanya program dan pembelian EPR sendiri
+                     • Detail pencapaian menampilkan EPP pemasok, kategori produk, SKU, qty, dan tanggal invoice
+                     • Subtitle topbar otomatis menampilkan nama EPR yang sesuai
                      • Domain login: username@epr26.id
 ```
 
@@ -54,8 +55,10 @@ Login  ──► Deteksi peran otomatis (Supabase Auth)
 | Icons | Lucide React |
 | Backend / Auth | Supabase (PostgreSQL + GoTrue Auth) |
 | Keamanan Data | Row-Level Security (RLS) PostgreSQL (Strict Read-Only) |
-| Data Utama | `public/data/epr_data.json` (dari repo `ariswidodo/EPR`) |
-| Data Booster | `public/data/program_partners.json` (dari repo `ariswidodo/Q3-Booster-Up`) |
+| Data Baseline | `public/data/epr_data.json` |
+| Data Program | `public/data/program_rules.json`, `program_participants_current.json` |
+| Data Harga SKU | `public/data/sku_price_database.json` |
+| Data Bersama | Supabase: `sales_records`, `epp_contributions`, `program_transaction_items` |
 | Hosting | Cloudflare Pages (Free Tier) |
 
 ---
@@ -71,21 +74,24 @@ epr-dashboard/
 ├── tsconfig.json / package.json
 │
 │── SQL Scripts (jalankan berurutan di Supabase SQL Editor):
-├── supabase_setup.sql                ← [1] Tabel EPR, RLS, trigger, 24 data toko
+├── supabase_setup.sql                ← [1] Tabel EPR, RLS, trigger, 24 data EPR
 ├── seed_users.sql                    ← [2] 24 akun login EPR
 ├── setup_epp.sql                     ← [3] Tabel EPP + 127 data EPP nasional
 ├── seed_epp_local.sql                ← [4] Akun Admin + 4 EPP lokal Jawa Tengah
 ├── update_epr_credentials.sql        ← [5] Update username & password 24 EPR
-├── import_pembelian_sales.sql        ← [6] Import 288 catatan pembelian bulanan
-├── lockdown_readonly_rls.sql         ← [7] Kunci strict READ-ONLY EPR & EPP
-├── patch_user_metadata.sql           ← [8] Patch epr_code ke JWT user_metadata
+├── lockdown_readonly_rls.sql         ← [6] Kunci strict READ-ONLY EPR & EPP
+├── patch_user_metadata.sql           ← [7] Patch epr_code ke JWT user_metadata
+├── shared_dashboard_data.sql         ← [8] Tabel ledger transaksi & kontribusi bersama + grants
 │
 ├── public/
 │   └── data/
-│       ├── epr_data.json             ← Data utama: 24 toko, 12 bulan fiskal, semua kategori
-│       ├── program_partners.json     ← 82 peserta Booster Up & tracking bulanan (Okt, Nov, Des)
+│       ├── epr_data.json             ← Baseline: 24 EPR, 12 bulan fiskal, semua kategori
 │       ├── program_rules.json        ← Skema reward Booster Up
-│       └── peserta_booster.csv       ← Master CSV peserta booster
+│       ├── program_participants_current.json ← Peserta program berjalan saat ini
+│       ├── booster_consumables_sku.csv ← SKU Consumables yang dihitung
+│       ├── sku_price_database.json    ← Harga rekomendasi per Material Code
+│       ├── epr_master.csv             ← Master EPR dan kota
+│       └── epp_master.csv             ← Master EPP dan kota
 │
 └── src/
     ├── main.tsx
@@ -98,7 +104,7 @@ epr-dashboard/
     │   └── supabase.ts               ← Supabase client + guard isSupabaseConfigured
     └── components/
         ├── Login.tsx                 ← Login (multi-domain: @epr26.id → @epp26.id)
-        ├── ModernEprDashboard.tsx    ← Dashboard utama (Overview, Booster Up, Audit)
+        ├── ModernEprDashboard.tsx    ← Dashboard utama (Overview, Program Berjalan, Kontribusi EPP)
         └── ChangePasswordModal.tsx   ← Modal ganti password mandiri
 ```
 
@@ -110,15 +116,15 @@ epr-dashboard/
 
 | Email | Password | Hak Akses |
 |---|---|---|
-| `admin@epr26.id` | `AdminEpr2026!` | Full access — semua data EPR, EPP, Booster Up, & Audit |
+| `admin@epr26.id` | `AdminEpr2026!` | Full access — semua data EPR, EPP, program berjalan, upload, & verifikasi |
 
 ---
 
-### EPR — Toko Retail (24 Akun)
+### EPR — Partner Retail (24 Akun)
 
 > Login menggunakan **Email** (`username@epr26.id`) atau **Username** saja.
 
-| Kode | Nama Toko | Username / Email | Password Default |
+| Kode | Nama EPR | Username / Email | Password Default |
 |---|---|---|---|
 | EPR-0038 | SINAR JAYA COMPUTER | `sinarjaya@epr26.id` | `Epr2026!SinarJaya` |
 | EPR-0054 | PT HETERO NIAGA GLOBAL | `heteroniaga@epr26.id` | `Epr2026!HeteroNiaga` |
@@ -166,10 +172,19 @@ epr-dashboard/
 
 | Tab | Admin | EPP | EPR |
 |---|---|---|---|
-| **Overview & Target H2** | ✅ Semua 24 toko + slicers | ✅ Semua 24 toko + slicers | ✅ Terisolasi: hanya toko sendiri |
-| **Paketan Berjalan (Booster Up)** | ✅ Semua 82 peserta + tracking bulanan | ✅ Semua 82 peserta + tracking bulanan | ✅ Terisolasi: paket toko sendiri + tracking bulanan |
-| **Kontribusi EPP & Audit** | ✅ 19 EPP lengkap | ❌ **Dihilangkan** | ❌ **Dihilangkan** |
-| **Upload Data Pembelian EPR** | ✅ Ada di Topbar (Modal Impor) | ❌ Tidak Ada | ❌ Tidak Ada |
+| **Overview & Target H2** | ✅ Semua EPR + slicers | ✅ Semua EPR + slicers | ✅ Terisolasi: hanya EPR sendiri |
+| **Program Berjalan** | ✅ Semua peserta + ketentuan | ✅ EPR yang terkait dengan EPP | ✅ Terisolasi: EPR sendiri |
+| **Kontribusi EPP** | ✅ Rekap semua EPP dan EPR | ❌ Tidak ditampilkan | ❌ Tidak ditampilkan |
+| **Upload Data Pembelian EPR** | ✅ Topbar (Modal Impor) | ❌ Tidak Ada | ❌ Tidak Ada |
+| **Data Upload Epson Hub** | ✅ Audit seluruh EPP/EPR | ✅ EPP sendiri per bulan | ❌ Tidak Ada |
+
+### Aturan Sesi Login
+
+- Sesi dashboard otomatis logout setelah **5 jam tanpa aktivitas**.
+- Aktivitas yang dihitung meliputi klik/touch, keyboard, scroll, dan pergerakan mouse.
+- Refresh halaman pada tab yang sama tetap mempertahankan sesi.
+- Setelah tab atau browser ditutup, sesi lokal tidak dipulihkan ketika dashboard dibuka kembali.
+- Logout manual dan logout otomatis menghapus sesi Supabase lokal.
 
 ---
 
@@ -179,45 +194,65 @@ Dashboard Admin dilengkapi tombol **"Upload Data EPR"** di bagian atas (topbar) 
 
 1. **Format & Template yang Didukung**:
    - **Template V3 (`Report Retail Q*`)**: Mendukung sheet laporan resmi kuartal Epson (Rebate Category & Total Price Net Exclude PPN).
-   - **Template V2 (`Partner Hub*`)**: Sheet data download Epson Partner Hub (Gross dibagi 1,11 Exclude PPN 11%).
-   - **Template V1 (`Sheet1`)**: Detail transaksi sell-out reguler (dibagi 1,11 Exclude PPN 11%).
-   - **Sheet `RETAIL` (Summary Matrix)**: Rekapitulasi target dan realisasi bulanan 4 kategori (*Consumer, Scanner, Consumables, Dotmatrix*).
+   - **Template V2 (`Partner Hub*`)**: Sheet data Epson Partner Hub; struktur harga sama dengan V1 dan final price dibagi 1,11.
+   - **Template V1 (`Sheet1`)**: Detail transaksi sell-out; final price dibagi 1,11.
+   - **Sheet `RETAIL` (Summary Matrix)**: Rekapitulasi target dan pembelian bulanan 4 kategori (*Consumer, Scanner, Consumables, Dotmatrix*).
 
-2. **Mesin Verifikasi & Deduplikasi Ketat**:
-   - **Validasi Master Toko**: Hanya transaksi dari 24 toko EPR resmi terdaftar yang diterima. Transaksi dari toko di luar master otomatis ditolak dengan status `LUAR DATABASE EPR`.
-   - **Deduplikasi Baris Kembar (`makeDeduplicationKey`)**: Mencegah duplikasi data penjualan dengan identifikasi multi-atribut:
-     - Nomor Invoice + Material SKU + Reseller Code + Tanggal.
-     - Serial Number (SN) / UID perangkat.
-     - Jika terdeteksi sama, baris ditolak dengan status `KEMBAR DALAM INPUT`.
+2. **Harga dan Verifikasi**:
+   - **Validasi Master EPR**: Hanya transaksi dari EPR resmi yang diterima. Transaksi di luar master ditolak dengan status `LUAR DATABASE EPR`.
+   - **Validasi kategori**: `SCN` menjadi Scanner, `CISS/SOHO` menjadi Consumer, `SIDM` menjadi Dotmatrix, dan kategori `*Cons` menjadi Consumables.
+   - **Harga V1/V2**: sistem membandingkan harga jual EPP dengan `sku_price_database.json` berdasarkan Material Code, memakai harga yang lebih rendah, mengalikan Qty, lalu membagi 1,11 untuk mengeluarkan PPN.
+   - **Tanggal invoice**: tanggal kalender invoice dipertahankan tanpa pergeseran zona waktu, termasuk tanggal 1 pada awal bulan.
 
-3. **Penggabungan Data Akumulatif (Non-Destructive Merge)**:
+3. **Ledger Anti-Duplikasi**:
+   - Identitas transaksi menggunakan EPR, Invoice No, tanggal, Material Code, Qty, harga, UID/SN, total, dan EPP.
+   - Upload file yang sama kembali ditolak sebagai `SUDAH TERVERIFIKASI`.
+   - Baris kembar di file yang sama ditolak sebagai `KEMBAR DALAM INPUT`.
+   - Ledger detail disimpan pada `program_transaction_items`; dashboard tidak hanya membandingkan total EPR.
+
+4. **Penggabungan Data Akumulatif (Non-Destructive Merge)**:
    - File transaksi yang diunggah (misal kuartal berjalan atau bulanan) digabungkan di atas data baseline yang ada tanpa menghapus pencapaian bulan-bulan sebelumnya.
    - Perhitungan kuartal (Q1–Q4), semester (H1, H2), dan total tahun fiskal (FY) otomatis diperbarui secara akurat.
-   - Apabila transaksi yang diunggah berada pada periode kuartal terdahulu, dashboard otomatis mengarahkan atau menyesuaikan tampilan agar data langsung terlihat.
+   - Data EPP/EPR/Admin membaca ledger yang sama sehingga rincian EPR, kategori, SKU, Qty, harga, dan tanggal invoice konsisten.
+   - Apabila transaksi yang diunggah berada pada periode kuartal terdahulu, dashboard otomatis menyesuaikan tampilan agar data terlihat.
 
-4. **Penyimpanan Live & Tombol Reset**:
-   - Hasil upload tersimpan di `localStorage` peramban Admin (`epr_custom_data`), sehingga data langsung tampil di dashboard secara instan.
-   - Admin dapat mengembalikan data ke bawaan awal kapan saja dengan tombol **"Kembalikan ke Data Awal"**.
+5. **Penyimpanan Live & Tombol Reset**:
+   - Hasil upload disimpan sementara di `localStorage` Admin (`epr_custom_data_v2`) dan disinkronkan ke Supabase.
+   - `sales_records` menyimpan agregat bulanan, `epp_contributions` menyimpan kontribusi EPP ke EPR, dan `program_transaction_items` menyimpan detail ledger.
+   - Tombol **"Kembalikan ke Data Awal"** menghapus data pembelian bersama dan mengembalikan baseline master/target ke kondisi nol.
+   - Setelah reset, upload ulang file sumber satu kali untuk membangun ledger baru.
+
+### Alur upload yang direkomendasikan
+
+```text
+Reset Data ke bawaan sistem (jika mengganti sumber/struktur data)
+        ↓
+Upload file V1/V2/V3 dari akun Admin
+        ↓
+Verifikasi EPR, invoice, tanggal, SKU, Qty, harga, kategori, dan duplikasi
+        ↓
+Sinkronisasi Supabase
+        ↓
+Dashboard Admin, EPP, dan EPR membaca ledger yang sama
+```
 
 ---
 
-## Fitur Tab Paketan Berjalan (Q3 Booster Up)
+## Fitur Program Berjalan (Q3 Booster Up)
 
-Tab **Paketan Berjalan** memantau pencapaian program kuartal 3 (1 Okt – 31 Des 2026) yang disinkronkan dari data resmi `ariswidodo/Q3-Booster-Up`:
+Tab **Program Berjalan** memantau pencapaian program periode 1 Okt – 31 Des 2026 berdasarkan peserta, ketentuan paket, dan master SKU lokal:
 
-1. **Cakupan 82 Peserta**:
-   - **ARIS**: 20 Toko *(termasuk Sinar Jaya, Al Bumi, Hetero, dkk)*
-   - **HERDIAN**: 42 Toko
-   - **SIGIT**: 20 Toko
+1. **Sumber konfigurasi program**:
+   - `program_participants_current.json` menentukan EPR yang ikut program.
+   - `program_rules.json` menentukan target per paket, subkategori, periode, dan EPP lokal yang dihitung.
+   - `booster_consumables_sku.csv` menentukan SKU Consumables yang valid.
+   - Pembelian hanya dihitung dari EPP lokal yang ditentukan ketentuan program.
 2. **Tracking Progres Bulanan**:
    - Kolom **Okt 2026**, **Nov 2026**, dan **Des 2026** memantau qty pembelian bulanan.
 3. **Sudah Beli vs Kurang Berapa**:
-   - **Sudah Beli**: Menampilkan total qty terverifikasi beserta rincian sub-kategori (*Low End, Mid High, Ink Bottle* atau *664/003, Lainnya*).
+   - **Sudah Beli**: Menampilkan total qty terverifikasi beserta rincian subkategori (*Low End, Mid High, Ink Bottle* atau *664/003, Lainnya*).
    - **Kurang (Gap)**: Menghitung selisih real-time terhadap target paket. Jika sudah memenuhi target, berstatus `✓ Terpenuhi`.
-4. **Skema Reward Otomatis**:
-   - **SUN**: Rp 20.000.000
-   - **STAR**: Rp 10.000.000
-   - **MOON**: Rp 3.900.000
+4. **Detail audit**: pembelian yang dihitung harus cocok dengan EPR peserta, periode program, nama program, SKU kategori, dan EPP lokal yang diizinkan.
 
 ---
 
@@ -229,14 +264,14 @@ Tab **Paketan Berjalan** memantau pencapaian program kuartal 3 (1 Okt – 31 Des
 
    | # | File | Fungsi |
    |---|---|---|
-   | 1 | `supabase_setup.sql` | Buat tabel `epr_stores`, RLS, trigger, insert 24 data toko |
+   | 1 | `supabase_setup.sql` | Buat tabel `epr_stores`, RLS, trigger, insert 24 data EPR |
    | 2 | `seed_users.sql` | Buat 24 akun login EPR + perbaikan token NULL |
    | 3 | `setup_epp.sql` | Buat tabel `epp_stores`, RLS, insert 127 data EPP nasional |
    | 4 | `seed_epp_local.sql` | Akun Admin + 4 akun EPP lokal Jawa Tengah |
-   | 5 | `update_epr_credentials.sql` | Update username & password 24 toko EPR |
-   | 6 | `import_pembelian_sales.sql` | Import 288 catatan pembelian bulanan ke `sales_records` |
-   | 7 | `lockdown_readonly_rls.sql` | Kunci strict READ-ONLY EPR & EPP di level database |
-   | 8 | `patch_user_metadata.sql` | Set `epr_code` ke `raw_user_meta_data` JWT semua akun EPR |
+   | 5 | `update_epr_credentials.sql` | Update username & password 24 EPR |
+   | 6 | `lockdown_readonly_rls.sql` | Kunci strict READ-ONLY EPR & EPP di level database |
+   | 7 | `patch_user_metadata.sql` | Set `epr_code` ke `raw_user_meta_data` JWT semua akun EPR |
+   | 8 | `shared_dashboard_data.sql` | Buat tabel data bersama, ledger transaksi, grants, dan izin sinkronisasi |
 
 4. *(Opsional — jika muncul error `Database error querying schema`)*:
    ```sql
@@ -282,5 +317,5 @@ npm run build
 
 | File | Keterangan |
 |---|---|
-| `Desktop/Akun_Toko_EPR_FY26.xlsx` | Rekap username & password 24 toko EPR |
+| `Desktop/Akun_Toko_EPR_FY26.xlsx` | Rekap username & password 24 EPR |
 | `Desktop/Akun_EPP_FY26.xlsx` | Rekap username & password 4 EPP lokal |

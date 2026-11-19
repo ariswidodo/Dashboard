@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, User, Eye, EyeOff, Loader2, AlertCircle, Store } from 'lucide-react';
 
-// Pemetaan username khusus toko ke email autentikasi terdaftar
+// Pemetaan username khusus EPR ke email autentikasi terdaftar
 const USERNAME_ALIASES: Record<string, string> = {
   hetero: 'heteroniaga@epr26.id',
   rajaink: 'rajaprint@epr26.id',
@@ -90,9 +90,9 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 mb-4 shadow-lg shadow-blue-500/10">
             <Store className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Portal Partner EPR FY26</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Portal Partner</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Masuk untuk melihat target & ringkasan pencapaian toko Anda
+            EPR Semarang dan Sekitar nya
           </p>
         </div>
 
@@ -107,8 +107,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Username Toko
+              <label className="block text-xs font-bold text-slate-950 uppercase tracking-wider mb-1.5">
+                Username
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -119,7 +119,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Contoh: sinarjaya"
+                  placeholder="Username"
                   className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                   autoCapitalize="none"
                   autoCorrect="off"
@@ -129,7 +129,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
             <div>
               <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <label className="block text-xs font-bold text-slate-950 uppercase tracking-wider">
                   Password
                 </label>
               </div>
@@ -142,7 +142,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan password toko"
+                  placeholder="Password"
                   className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                 />
                 <button
@@ -171,13 +171,10 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          {/* AM Info Notice */}
+          {/* Disclaimer */}
           <div className="mt-6 pt-5 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Belum memiliki username atau lupa password?
-              <br />
-              Silakan hubungi Account Manager:{' '}
-              <span className="font-semibold text-slate-700">ARIS</span>
+            <p className="text-xs text-amber-700 font-bold leading-relaxed">
+              Disclaimer: Angka dan perhitungan di Portal ini bersifat estimasi awal dan bukan merupakan perhitungan resmi.
             </p>
           </div>
         </div>

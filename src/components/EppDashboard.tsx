@@ -70,7 +70,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
         setEppProfile(eppData);
       }
 
-      // 2. Ambil seluruh data Toko Retail (EPR) untuk dimonitor
+      // 2. Ambil seluruh data EPR untuk dimonitor
       const { data: storesData } = await supabase
         .from('epr_stores')
         .select('*')
@@ -78,7 +78,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
 
       setEprStores(storesData || []);
 
-      // 3. Ambil data pencapaian / pembelian toko EPR
+      // 3. Ambil data pencapaian / pembelian EPR
       const { data: salesData } = await supabase
         .from('sales_records')
         .select('*');
@@ -161,7 +161,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
                   </span>
                 </div>
                 <span className="text-xs text-slate-500 hidden sm:block">
-                  Monitoring Performa Pembelian Toko Retail (EPR)
+                  Monitoring Performa Pembelian EPR
                 </span>
               </div>
             </div>
@@ -207,7 +207,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
               <div className="bg-teal-50/60 border border-teal-100 rounded-2xl p-4 text-xs text-teal-900 max-w-sm">
                 <p className="font-semibold mb-1">Informasi Akses EPP:</p>
                 <p className="text-teal-700 leading-relaxed">
-                  Dashboard ini menampilkan performa target dan pembelian toko-toko retail (EPR) secara agregat tanpa menampilkan identitas EPP pemasok.
+                  Dashboard ini menampilkan performa target dan pembelian EPR secara agregat tanpa menampilkan identitas EPP pemasok.
                 </p>
               </div>
             </div>
@@ -218,7 +218,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Total Target Toko Retail (EPR)</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Target EPR</span>
               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                 <DollarSign className="w-4 h-4" />
               </div>
@@ -244,13 +244,13 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
 
           <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Toko Retail Terpantau</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">EPR Terpantau</span>
               <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
                 <Building2 className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl font-extrabold text-slate-900">
-              {eprStores.length} Toko Retail
+              {eprStores.length} EPR
             </div>
             <p className="text-xs text-slate-500 mt-1">Wilayah Jawa Tengah (AM: ARIS)</p>
           </div>
@@ -260,7 +260,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
         <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Monitoring Performa Toko Retail (EPR)</h3>
+              <h3 className="text-lg font-bold text-slate-900">Monitoring Performa EPR</h3>
               <p className="text-xs text-slate-500">
                 Data pembelian disajikan secara konsolidasi tanpa memuat informasi EPP pemasok
               </p>
@@ -272,7 +272,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari toko / kode / kota..."
+                  placeholder="Cari EPR / kode / kota..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20"
@@ -310,7 +310,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
           {loading ? (
             <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
               <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-              <p className="text-xs">Memuat data performa toko...</p>
+              <p className="text-xs">Memuat data performa EPR...</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -318,8 +318,8 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
                 <thead className="bg-slate-50 text-2xs uppercase font-semibold text-slate-500 tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="py-3.5 px-6">No</th>
-                    <th className="py-3.5 px-6">Kode Toko</th>
-                    <th className="py-3.5 px-6">Nama Toko Retail</th>
+                    <th className="py-3.5 px-6">Kode EPR</th>
+                    <th className="py-3.5 px-6">Nama EPR</th>
                     <th className="py-3.5 px-6">Kota</th>
                     <th className="py-3.5 px-6">Kategori</th>
                     <th className="py-3.5 px-6">Target FY26 (Inc Tax)</th>
@@ -381,7 +381,7 @@ export const EppDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
         </div>
       </main>
 
-      {/* Modal Detail Toko Retail */}
+      {/* Modal Detail EPR */}
       {detailModalStore && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 relative border border-slate-100">

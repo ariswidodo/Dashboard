@@ -68,7 +68,7 @@ export const ChangePasswordModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
           <div>
             <h3 className="text-lg font-bold text-slate-800">Ganti Password</h3>
-            <p className="text-xs text-slate-500">Buat password baru untuk akun toko Anda</p>
+            <p className="text-xs text-slate-500">Buat password baru untuk akun EPR Anda</p>
           </div>
         </div>
 

@@ -2,8 +2,8 @@
  * epr_engine.ts
  * Adopsi penuh mesin verifikasi & deduplikasi dari ariswidodo/EPR
  * Mendukung template:
- * - V1: Sheet1 (Gross price, dibagi 1,11 exclude PPN 11%)
- * - V2: Partner Hub (Gross price, dibagi 1,11 exclude PPN 11%)
+ * - V1: Sheet1 (Harga final = harga terendah EPP/database × Qty, dibagi 1,11)
+ * - V2: Partner Hub (Struktur harga sama dengan V1)
  * - V3: Report Retail Q1/Q2/Q3/Q4 (Net price, Product Rebate di kolom U, Total Price di kolom Z)
  * - RETAIL: Sheet ringkasan target & bulanan
  */
@@ -11,13 +11,13 @@
 import * as XLSX from 'xlsx';
 import { PartnerData, EprFullData, EppSource } from '../types-pbi';
 
-// Master 24 Toko EPR Area ARIS (Jawa Tengah)
+// Master 24 EPR Area ARIS (Jawa Tengah)
 export const EPR_MASTER = [
   { code: 'EPR-0038', name: 'SINAR JAYA COMPUTER / CV PINDITECH MAJU ABADI', city: 'KUDUS', category: 'MOON', am: 'ARIS', target_excl: 1500000000, target_original: 2149300000 },
   { code: 'EPR-0054', name: 'PT HETERO NIAGA GLOBAL', city: 'SEMARANG', category: 'SUN', am: 'ARIS', target_excl: 6000000000, target_original: 7164340000 },
   { code: 'EPR-0267', name: 'PT HARRISMA PRATAMAJAYA', city: 'SURAKARTA', category: 'SUN', am: 'ARIS', target_excl: 6000000000, target_original: 6447900000 },
   { code: 'EPR-0650', name: 'CV RAJA PRINT SOLUTION', city: 'SEMARANG', category: 'STAR', am: 'ARIS', target_excl: 4000000000, target_original: 4298600000 },
-  { code: 'EPR-0733', name: 'MICRO PRINTER', city: 'SEMARANG', category: 'MOON', am: 'ARIS', target_excl: 1500000000, target_original: 1791080000 },
+  { code: 'EPR-0733', name: 'MICRO PRINTER', city: 'PATI', category: 'CRESCENT', am: 'ARIS', target_excl: 200000000, target_original: 928000000 },
   { code: 'EPR-0881', name: 'UD PIXEL', city: 'SEMARANG', category: 'MOON', am: 'ARIS', target_excl: 1500000000, target_original: 1791080000 },
   { code: 'EPR-1002', name: 'AL BUMI IT STORE', city: 'KENDAL', category: 'CRESCENT', am: 'ARIS', target_excl: 200000000, target_original: 429860000 },
   { code: 'EPR-1005', name: 'CV PRIBUMI JAYA KOMPUTAMA', city: 'KUDUS', category: 'MOON', am: 'ARIS', target_excl: 1500000000, target_original: 1791080000 },
@@ -83,6 +83,8 @@ export interface VerificationStats {
   totalInputRows: number;
   verifiedCount: number;
   duplicateCount: number;
+  duplicateInInputCount: number;
+  alreadyVerifiedCount: number;
   outsideMasterCount: number;
   totalVerifiedAmount: number;
   templateVersion: string;
@@ -135,7 +137,12 @@ export function parseKategori(cat: string): 'Consumer' | 'Scanner' | 'Consumable
 // Parse Tanggal Transaksi: Mendukung dd-mm-yyyy, yyyy-mm-dd, maupun Excel serial number
 export function parseInvoiceDate(val: any): Date | null {
   if (!val) return null;
-  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return null;
+    // Simpan tanggal kalender lokal. Jangan biarkan konversi UTC mengubah
+    // invoice 01-10 menjadi 30-09 pada zona waktu Asia.
+    return new Date(val.getFullYear(), val.getMonth(), val.getDate());
+  }
 
   const s = String(val).trim();
   if (!s) return null;
@@ -144,8 +151,9 @@ export function parseInvoiceDate(val: any): Date | null {
   if (/^\d{5}(\.0+)?$/.test(s)) {
     const serial = parseFloat(s);
     // Excel epoch: 1899-12-30
-    const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
-    return isNaN(d.getTime()) ? null : d;
+    const utcDate = new Date(Math.round((serial - 25569) * 86400 * 1000));
+    if (isNaN(utcDate.getTime())) return null;
+    return new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate());
   }
 
   // Cek dd/mm/yyyy atau dd-mm-yyyy
@@ -179,7 +187,15 @@ export function getFiscalMonthIndex(d: Date): number {
   return (m >= 4 ? m - 4 : m + 8);
 }
 
-// Resolver Toko EPR dari kode & kota sesuai epr_build.py
+// Format tanggal berdasarkan kalender invoice, bukan UTC ISO string.
+// `toISOString()` dapat menggeser tanggal 01-10-2026 menjadi 30-09-2026
+// ketika aplikasi berjalan di zona waktu Asia.
+export function formatInvoiceDate(d: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Resolver EPR dari kode & kota sesuai epr_build.py
 export function resolveEprCode(rawCode: string, rawName: string, rawCity: string): string | null {
   const c = (rawCode || '').trim().toUpperCase();
   const byCode = EPR_MASTER.find(m => m.code === c);
@@ -223,18 +239,31 @@ export function makeDeduplicationKey(
   sn?: string,
   invDate?: string,
   fileName?: string,
-  rowNum?: number
+  rowNum?: number,
+  totalPrice?: number,
+  eppCode?: string
 ): string {
-  if (invNo) {
-    return [code, invNo.trim().toUpperCase(), (matCode || '').toUpperCase(), String(qty), String(price)].join('|');
-  }
-  if (uid) {
-    return 'UID|' + uid.trim();
-  }
-  if (sn) {
-    return ['SN', code, (matCode || '').toUpperCase(), sn.trim().toUpperCase()].join('|');
-  }
-  return ['V3', code, invDate || '', (matCode || '').toUpperCase(), String(qty), String(price), fileName || '', String(rowNum || 0)].join('|');
+  // Identitas transaksi harus bebas dari nama file dan nomor baris. Dengan
+  // begitu, transaksi yang sama tetap dianggap duplikat walaupun dikirim ulang
+  // melalui file berbeda atau berada di baris berbeda.
+  const normalizeText = (value: string | undefined) =>
+    String(value || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  const normalizeNumber = (value: number | undefined) =>
+    Number.isFinite(value) ? Number(value).toFixed(6) : '0.000000';
+
+  return [
+    'TX',
+    normalizeText(code),
+    normalizeText(invNo),
+    normalizeText(invDate),
+    normalizeText(matCode),
+    normalizeNumber(qty),
+    normalizeNumber(price),
+    normalizeNumber(totalPrice),
+    normalizeText(uid),
+    normalizeText(sn),
+    normalizeText(eppCode),
+  ].join('|');
 }
 
 /**
@@ -244,7 +273,8 @@ export function makeDeduplicationKey(
 export function processUploadedWorkbook(
   wb: XLSX.WorkBook,
   fileName: string,
-  existingData: EprFullData | null
+  existingData: EprFullData | null,
+  priceDatabase: Record<string, number> = {}
 ): { updatedData: EprFullData; stats: VerificationStats } {
   const sheetNames = wb.SheetNames;
 
@@ -262,12 +292,16 @@ export function processUploadedWorkbook(
     totalInputRows: 0,
     verifiedCount: 0,
     duplicateCount: 0,
+    duplicateInInputCount: 0,
+    alreadyVerifiedCount: 0,
     outsideMasterCount: 0,
     totalVerifiedAmount: 0,
     templateVersion: 'V3',
     sourceSheet: '',
     rejectedRows: []
   };
+  const acceptedTransactionKeysForData = new Set<string>();
+  const acceptedProgramItems: any[] = [];
 
   // Buat copy partners dari master & MERGE dengan data existing (baseline) agar data tidak hilang/terhapus!
   const partnersMap = new Map<string, PartnerData>();
@@ -356,6 +390,12 @@ export function processUploadedWorkbook(
     stats.sourceSheet = targetSheets.join(', ');
 
     const seenDedupKeys = new Set<string>();
+    const previouslyVerifiedKeys = new Set(
+      existingData?.meta?.verification_ledger_version === 3
+        ? (existingData.verified_transaction_keys || [])
+        : []
+    );
+    let inputDataRows = 0;
 
     for (const shName of targetSheets) {
       const ws = wb.Sheets[shName];
@@ -399,12 +439,22 @@ export function processUploadedWorkbook(
       const cProdDesc = getCol(['Product', 'Description', 'Material Description']);
       const cQty = getCol(['Quantity', 'Qty']);
       const cUnitPrice = getCol(['Actual Unit Price', 'Reseller Price (IDR)', 'Price', 'New Price (IDR)']);
+      const cNewPrice = getCol(['New Price (IDR)', 'New Price']);
+      const cResellerPrice = getCol(['Reseller Price (IDR)', 'Reseller Price']);
+      const cRecommendedPrice = getCol(['Recommended Price from EIN (IDR)', 'Recommended Price from EIN']);
       const cTotalPrice = getCol(['Actual Total Amount', 'Total Price', 'Total', 'Amount']);
       const cCategory = getCol(['Rebate product category', 'Product Rebate', 'Category', 'Kat']);
       const cUID = getCol(['UID']);
       const cSN = getCol(['SN', 'Serial Number']);
-      const cEppName = getCol(['Dealer Name', 'EPP Name', 'Distributor']);
-      const cEppCode = getCol(['T2 Partner code', 'EPP Code']);
+      const cEppName = getCol(['Dealer Name', 'EPP Name', 'Distributor Name', 'Distributor']);
+      const cEppCode = getCol(['T2 Partner code', 'T2 Partner Code', 'EPP Code', 'Dealer ID', 'Dealer Code']);
+      const cRemarks = getCol(['Remarks', 'Remaks']);
+      const cProgramColumn = getCol(['Program']);
+      // V1 menyimpan program di AD (Remarks), V2 di AL (Program).
+      // Header-based lookup tetap dipakai agar kolom tambahan tidak menggeser mapping.
+      const cProgram = templateVer.startsWith('V1')
+        ? cRemarks
+        : (cProgramColumn !== -1 ? cProgramColumn : cRemarks);
 
       for (let r = headerRowIdx + 1; r < aoa.length; r++) {
         const row = aoa[r];
@@ -414,6 +464,7 @@ export function processUploadedWorkbook(
         const rawDate = cInvDate !== -1 ? row[cInvDate] : '';
         if (!rawMat && !rawDate) continue;
 
+        inputDataRows++;
         stats.totalInputRows++;
 
         const dDate = parseInvoiceDate(rawDate);
@@ -440,10 +491,37 @@ export function processUploadedWorkbook(
 
         const invNo = String(cInvNo !== -1 ? row[cInvNo] || '' : '').trim();
         const qty = parseFloat(String(cQty !== -1 ? row[cQty] || 0 : 0).replace(/,/g, '')) || 0;
-        let unitPrice = parseFloat(String(cUnitPrice !== -1 ? row[cUnitPrice] || 0 : 0).replace(/,/g, '')) || 0;
-        let totalPrice = parseFloat(String(cTotalPrice !== -1 ? row[cTotalPrice] || 0 : 0).replace(/,/g, '')) || (qty * unitPrice);
+        const parseAmount = (value: any): number | null => {
+          const raw = String(value ?? '').trim();
+          if (!raw) return null;
+          const negative = /^\(.*\)$/.test(raw);
+          const parsed = Number(raw.replace(/[(),]/g, ''));
+          if (!Number.isFinite(parsed)) return null;
+          return negative ? -parsed : parsed;
+        };
+        let unitPrice = parseAmount(cUnitPrice !== -1 ? row[cUnitPrice] : null) ?? 0;
 
-        // Jika Template V1 atau V2: nilai masih gross -> dibagi 1,11 exclude PPN 11%
+        // Result per Q: Y (New Price) harus memakai harga termurah V/W.
+        // Jika formula Y belum dihitung oleh Excel, hitung ulang dari V dan W.
+        if (cNewPrice !== -1 || (cResellerPrice !== -1 && cRecommendedPrice !== -1)) {
+          const newPrice = parseAmount(cNewPrice !== -1 ? row[cNewPrice] : null);
+          const resellerPrice = parseAmount(cResellerPrice !== -1 ? row[cResellerPrice] : null);
+          const recommendedPrice = parseAmount(cRecommendedPrice !== -1 ? row[cRecommendedPrice] : null);
+          unitPrice = newPrice != null && newPrice > 0
+            ? newPrice
+            : Math.min(...[resellerPrice, recommendedPrice].filter((v): v is number => v != null));
+          if (!Number.isFinite(unitPrice)) unitPrice = newPrice ?? resellerPrice ?? recommendedPrice ?? 0;
+        }
+        const databasePrice = Number(priceDatabase[rawMat.toUpperCase()] || 0);
+        if (templateVer.startsWith('V1') || templateVer.startsWith('V2')) {
+          const validUnitPrices = [unitPrice, databasePrice].filter((value) => Number.isFinite(value) && value > 0);
+          if (validUnitPrices.length > 0) unitPrice = Math.min(...validUnitPrices);
+        }
+        let totalPrice = templateVer.startsWith('V1') || templateVer.startsWith('V2')
+          ? qty * unitPrice
+          : parseFloat(String(cTotalPrice !== -1 ? row[cTotalPrice] || 0 : 0).replace(/,/g, '')) || (qty * unitPrice);
+
+        // Template V1 dan V2 memakai harga gross final lalu exclude PPN 11%.
         if (templateVer.startsWith('V1') || templateVer.startsWith('V2')) {
           totalPrice = totalPrice / 1.11;
           unitPrice = unitPrice / 1.11;
@@ -453,10 +531,42 @@ export function processUploadedWorkbook(
         const sn = cSN !== -1 ? String(row[cSN] || '') : '';
 
         // 2. Filter data double / kembar (Deduplikasi make_key)
-        const dedupKey = makeDeduplicationKey(resolvedCode, invNo, rawMat, qty, unitPrice, uid, sn, dDate.toISOString().slice(0, 10), fileName, r + 1);
+        const invoiceDate = formatInvoiceDate(dDate);
+        const eppCode = String(cEppCode !== -1 ? row[cEppCode] || '' : '').trim();
+        const dedupKey = makeDeduplicationKey(
+          resolvedCode,
+          invNo,
+          rawMat,
+          qty,
+          unitPrice,
+          uid,
+          sn,
+          invoiceDate,
+          fileName,
+          r + 1,
+          totalPrice,
+          eppCode
+        );
+
+        // Bandingkan dengan seluruh transaksi yang pernah lolos pada upload
+        // sebelumnya, bukan hanya dengan agregat total per EPR.
+        if (previouslyVerifiedKeys.has(dedupKey)) {
+          stats.duplicateCount++;
+          stats.alreadyVerifiedCount++;
+          stats.rejectedRows.push({
+            rowNum: r + 1,
+            file: fileName,
+            reason: 'SUDAH TERVERIFIKASI',
+            code: resolvedCode,
+            name: rawName,
+            rawText: `Inv: ${invNo || '-'} | Tanggal: ${invoiceDate} | Material: ${rawMat} | Qty: ${qty}`
+          });
+          continue;
+        }
 
         if (seenDedupKeys.has(dedupKey)) {
           stats.duplicateCount++;
+          stats.duplicateInInputCount++;
           stats.rejectedRows.push({
             rowNum: r + 1,
             file: fileName,
@@ -468,6 +578,7 @@ export function processUploadedWorkbook(
           continue;
         }
         seenDedupKeys.add(dedupKey);
+        acceptedTransactionKeysForData.add(dedupKey);
 
         // 3. Lolos verifikasi
         stats.verifiedCount++;
@@ -481,6 +592,7 @@ export function processUploadedWorkbook(
 
         const rawCat = cCategory !== -1 ? String(row[cCategory] || '') : '';
         let cat = parseKategori(rawCat) || 'Consumer';
+        const programName = String(cProgram !== -1 ? row[cProgram] || '' : '').trim() || 'Reguler (Tanpa Program)';
 
         // Update nilai akumulasi partner
         p.monthly_total[mIdx] = (p.monthly_total[mIdx] || 0) + totalPrice;
@@ -500,7 +612,6 @@ export function processUploadedWorkbook(
 
         // Catat EPP Supplier
         const eppName = String(cEppName !== -1 ? row[cEppName] || '' : '').trim();
-        const eppCode = String(cEppCode !== -1 ? row[cEppCode] || '' : '').trim();
         if (eppName || eppCode) {
           let srcItem = p.epp_sources.find(s => s.code === eppCode || s.name === eppName);
           if (!srcItem) {
@@ -518,7 +629,44 @@ export function processUploadedWorkbook(
           srcItem.tx += 1;
           srcItem.cats[cat] = (srcItem.cats[cat] || 0) + totalPrice;
         }
+
+        // Catat program berjalan dari kolom Remarks (V1/AD) atau Program
+        // (V2/AL) pada transaksi yang sudah lolos verifikasi.
+        let programSource = p.program_sources.find(src => src.name === programName);
+        if (!programSource) {
+          programSource = {
+            name: programName,
+            total: 0,
+            tx: 0,
+            qty: 0,
+            cats: { Consumer: 0, Scanner: 0, Consumables: 0, Dotmatrix: 0 }
+          };
+          p.program_sources.push(programSource);
+        }
+        programSource.total += totalPrice;
+        programSource.tx += 1;
+        programSource.qty += qty;
+        programSource.cats[cat] = (programSource.cats[cat] || 0) + totalPrice;
+
+        acceptedProgramItems.push({
+          epr: resolvedCode,
+          prog: programName,
+          date: invoiceDate,
+          model: rawMat,
+          desc: String(cProdDesc !== -1 ? row[cProdDesc] || '' : '').trim(),
+          kat: cat,
+          epp: eppCode,
+          epp_name: eppName,
+          eim: eppName,
+          qty,
+          net: totalPrice,
+          tx: 1,
+        });
       }
+    }
+
+    if (inputDataRows === 0) {
+      throw new Error(`${templateVer} kosong: tidak ada baris data transaksi yang dapat diproses.`);
     }
   }
   // -------------------------------------------------------------
@@ -533,14 +681,42 @@ export function processUploadedWorkbook(
     const aoa: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
     const seenCodes = new Set<string>();
 
-    const starts = { Consumer: 13, Scanner: 26, Consumables: 39, Dotmatrix: 52 };
     const CATS: Array<'Consumer' | 'Scanner' | 'Consumables' | 'Dotmatrix'> = ['Consumer', 'Scanner', 'Consumables', 'Dotmatrix'];
 
-    for (let r = 16; r < aoa.length; r++) {
-      const row = aoa[r];
-      if (!row || !row[1]) continue;
+    // Posisi kolom berbeda antar versi template RETAIL. Baca berdasarkan header,
+    // bukan angka kolom tetap, agar Result Template terbaru tetap kompatibel.
+    const normCell = (value: any) => String(value ?? '').trim().toLowerCase();
+    const parseMatrixNumber = (value: any): number => {
+      const raw = String(value ?? '').trim();
+      if (!raw || raw === '-' || raw === '—') return 0;
+      const negative = /^\(.*\)$/.test(raw);
+      const parsed = Number(raw.replace(/[(),]/g, ''));
+      if (!Number.isFinite(parsed)) return 0;
+      return negative ? -parsed : parsed;
+    };
+    const eprHeaderRow = aoa.findIndex(row => (row || []).some(cell => normCell(cell) === 'epr code'));
+    const matrixHeaderRow = aoa.findIndex((row, index) =>
+      index > eprHeaderRow && (row || []).some(cell => normCell(cell) === 'category')
+    );
+    const eprHeader = eprHeaderRow >= 0 ? aoa[eprHeaderRow] : [];
+    const matrixHeader = matrixHeaderRow >= 0 ? aoa[matrixHeaderRow] : [];
+    const codeCol = eprHeader.findIndex(cell => normCell(cell) === 'epr code');
+    const nameCol = eprHeader.findIndex(cell => normCell(cell) === 'epr name');
+    const categoryCol = matrixHeader.findIndex(cell => normCell(cell) === 'category');
+    const targetCol = matrixHeader.findIndex(cell => normCell(cell) === 'y target');
+    const revenueStart = categoryCol >= 0 ? categoryCol + 3 : 10;
+    const firstTotalCol = matrixHeader.findIndex((cell, index) =>
+      index >= revenueStart && normCell(cell) === 'total'
+    );
+    const blockWidth = firstTotalCol > revenueStart ? firstTotalCol - revenueStart + 1 : 13;
+    const monthCount = Math.max(1, blockWidth - 1);
+    const starts = CATS.map((_, index) => revenueStart + index * blockWidth);
 
-      const code = String(row[1]).trim().toUpperCase();
+    for (let r = Math.max(matrixHeaderRow + 1, eprHeaderRow + 2, 0); r < aoa.length; r++) {
+      const row = aoa[r];
+      if (!row || codeCol < 0 || !String(row[codeCol] ?? '').trim()) continue;
+
+      const code = String(row[codeCol]).trim().toUpperCase();
       if (!code.startsWith('EPR-')) continue;
 
       stats.totalInputRows++;
@@ -552,7 +728,7 @@ export function processUploadedWorkbook(
           file: fileName,
           reason: 'KEMBAR DALAM INPUT',
           code,
-          name: String(row[2] || ''),
+          name: String(nameCol >= 0 ? row[nameCol] || '' : ''),
           rawText: `Baris duplikat kode ${code}`
         });
         continue;
@@ -567,15 +743,15 @@ export function processUploadedWorkbook(
           file: fileName,
           reason: 'LUAR DATABASE EPR',
           code,
-          name: String(row[2] || ''),
-          rawText: 'Kode tidak terdaftar di 24 toko master ARIS'
+          name: String(nameCol >= 0 ? row[nameCol] || '' : ''),
+          rawText: 'Kode tidak terdaftar di 24 EPR master ARIS'
         });
         continue;
       }
 
       stats.verifiedCount++;
 
-      const target_fy = Number(row[10] || p.target_fy);
+      const target_fy = parseMatrixNumber(targetCol >= 0 ? row[targetCol] : 0) || p.target_fy;
       p.target_fy = target_fy;
       p.target_original = target_fy;
       p.target_h1 = Math.round(target_fy * 0.52);
@@ -585,7 +761,7 @@ export function processUploadedWorkbook(
         const f0 = starts[c];
         const arr: number[] = [];
         for (let m = 0; m < 12; m++) {
-          arr.push(Number(row[f0 + m] || 0));
+          arr.push(m < monthCount ? parseMatrixNumber(row[f0 + m]) : 0);
         }
         p.monthly_by_cat[c] = arr;
         p.cat_totals[c] = arr.reduce((a, b) => a + b, 0);
@@ -602,10 +778,14 @@ export function processUploadedWorkbook(
       p.actual_h1 = p.actual_q1 + p.actual_q2;
       p.actual_h2 = p.actual_q3 + p.actual_q4;
       p.actual_fy = p.actual_h1 + p.actual_h2;
-      p.mid_hi = Number(row[71] || 0);
+      p.mid_hi = p.mid_hi || 0;
       p.low_end = Math.max(0, p.actual_fy - p.mid_hi);
 
       stats.totalVerifiedAmount += p.actual_fy;
+    }
+
+    if (stats.totalInputRows === 0) {
+      throw new Error('Template RETAIL kosong: tidak ada baris EPR yang dapat diproses.');
     }
   } else {
     throw new Error('Format file Excel tidak dikenali. Pastikan file menggunakan template V1 (Sheet1), V2 (Partner Hub), V3 (Report Retail Q*), atau RETAIL.');
@@ -616,8 +796,17 @@ export function processUploadedWorkbook(
   const updatedData: EprFullData = {
     ...(existingData || ({} as any)),
     partners: updatedPartners,
+    program_items: [
+      ...(existingData?.program_items || []),
+      ...acceptedProgramItems,
+    ],
+    verified_transaction_keys: Array.from(new Set([
+      ...(existingData?.verified_transaction_keys || []),
+      ...acceptedTransactionKeysForData,
+    ])),
     meta: {
       ...(existingData?.meta || ({} as any)),
+      verification_ledger_version: 3,
       last_updated: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
       last_source_file: fileName,
     }

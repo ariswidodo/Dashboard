@@ -9,7 +9,7 @@
       "EPP-0055"
     ],
     "local_epp_names": [
-      "PT Computek",
+      "Compumart",
       "Raka Perkasa",
       "Computa",
       "Top Distribusi"
@@ -49,6 +49,36 @@
       "C13T09D599",
       "C13T09D699"
     ],
+    "consumer_products": {
+      "low_end_models": [
+        "L121",
+        "L3211",
+        "L3251"
+      ],
+      "mid_high_models": [
+        "L5290",
+        "L4360",
+        "L6370",
+        "L6390",
+        "L6440",
+        "L6490",
+        "L11050",
+        "L14150",
+        "L15150",
+        "L8050",
+        "L8100",
+        "L18050",
+        "All M Series"
+      ],
+      "ink_bottle_families": [
+        "664",
+        "671",
+        "001",
+        "003",
+        "008",
+        "057"
+      ]
+    },
     "schemes": {
       "unit_ink": {
         "label": "Program Q3 Booster Up (Consumer — Unit + Ink Bottle)",

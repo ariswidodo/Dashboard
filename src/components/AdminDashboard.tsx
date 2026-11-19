@@ -116,14 +116,14 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
         <div className="bg-slate-900 text-white px-6 py-2.5 flex items-center justify-between text-xs sticky top-0 z-50">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Mode Inspeksi Administrator — Melihat data toko: <strong>{selectedStore.epr_name}</strong></span>
+            <span>Mode Inspeksi Administrator — Melihat data EPR: <strong>{selectedStore.epr_name}</strong></span>
           </div>
           <button
             onClick={() => setSelectedStore(null)}
             className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg transition"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Kembali ke Ringkasan Semua Toko</span>
+            <span>Kembali ke Ringkasan Semua EPR</span>
           </button>
         </div>
         <Dashboard userEmail={userEmail} onLogout={onLogout} previewStore={selectedStore} />
@@ -190,18 +190,18 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
             <div className="text-2xl font-extrabold text-slate-900">
               {formatRupiah(totalTargetAll)}
             </div>
-            <p className="text-xs text-slate-500 mt-1">Akumulasi Target 24 Toko Retail</p>
+            <p className="text-xs text-slate-500 mt-1">Akumulasi Target 24 EPR</p>
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Toko Retail (EPR)</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">EPR</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <Building2 className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl font-extrabold text-slate-900">
-              {eprStores.length} Toko Retail
+              {eprStores.length} EPR
             </div>
             <p className="text-xs text-slate-500 mt-1">Wilayah Jawa Tengah (AM: ARIS)</p>
           </div>
@@ -214,7 +214,7 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
               </div>
             </div>
             <div className="text-2xl font-extrabold text-slate-900">
-              {eppStores.length} Toko EPP
+              {eppStores.length} EPP
             </div>
             <p className="text-xs text-slate-500 mt-1">Cakupan Nasional (Central, South West, dll)</p>
           </div>
@@ -231,7 +231,7 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
             }`}
           >
             <Building2 className="w-4 h-4" />
-            <span>Toko Retail (EPR — {eprStores.length})</span>
+            <span>EPR ({eprStores.length})</span>
           </button>
 
           <button
@@ -247,13 +247,13 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
           </button>
         </div>
 
-        {/* TAB 1: EPR TOKO */}
+        {/* TAB 1: EPR */}
         {activeTab === 'EPR' && (
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Daftar Toko Retail EPR FY26</h3>
-                <p className="text-xs text-slate-500">Klik "Lihat Detail" untuk memeriksa rincian target toko retail</p>
+                <h3 className="text-lg font-bold text-slate-900">Daftar EPR FY26</h3>
+                <p className="text-xs text-slate-500">Klik "Lihat Detail" untuk memeriksa rincian target EPR</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -261,7 +261,7 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Cari toko / kode / kota..."
+                    placeholder="Cari EPR / kode / kota..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -286,7 +286,7 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
             {loading ? (
               <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                <p className="text-xs">Memuat data 24 toko...</p>
+                <p className="text-xs">Memuat data 24 EPR...</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -295,7 +295,7 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
                     <tr>
                       <th className="py-3 px-6">No</th>
                       <th className="py-3 px-6">Kode EPR</th>
-                      <th className="py-3 px-6">Nama Toko</th>
+                      <th className="py-3 px-6">Nama EPR</th>
                       <th className="py-3 px-6">Kota</th>
                       <th className="py-3 px-6">Kategori</th>
                       <th className="py-3 px-6">Target FY26 (Inc Tax)</th>
@@ -345,7 +345,7 @@ export const AdminDashboard: React.FC<Props> = ({ userEmail, onLogout }) => {
           </div>
         )}
 
-        {/* TAB 2: EPP TOKO */}
+        {/* TAB 2: EPP */}
         {activeTab === 'EPP' && (
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
