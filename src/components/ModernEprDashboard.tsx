@@ -1554,8 +1554,35 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           console.warn('Database harga SKU tidak dapat dimuat; harga upload dipakai apa adanya:', priceError);
         }
 
+        let skuDatabase: Record<string, { categoryProduct: string; productRebate: string; description: string }> = productCategoryMap;
+        if (Object.keys(skuDatabase).length === 0) {
+          try {
+            const skuResponse = await fetch(`/data/sku.xlsx?t=${Date.now()}`);
+            if (skuResponse.ok) {
+              const skuWorkbook = XLSX.read(new Uint8Array(await skuResponse.arrayBuffer()), { type: 'array' });
+              const skuSheet = skuWorkbook.Sheets[skuWorkbook.SheetNames[0]];
+              const skuRows = XLSX.utils.sheet_to_json<Record<string, any>>(skuSheet, { defval: '' });
+              skuDatabase = {};
+              skuRows.forEach((row) => {
+                const model = String(row['Model'] || '').trim().toUpperCase();
+                if (!model) return;
+                skuDatabase[model] = {
+                  categoryProduct: String(row['Category Product'] || '').trim(),
+                  productRebate: String(row['Product Rebate'] || '').trim(),
+                  description: String(row['Desc'] || '').trim(),
+                };
+              });
+            }
+          } catch (skuError) {
+            console.warn('Master SKU tidak dapat dimuat; upload dibatalkan demi menjaga validasi SKU:', skuError);
+          }
+        }
+        if (Object.keys(skuDatabase).length === 0) {
+          throw new Error('Master SKU tidak tersedia. Upload dibatalkan agar SKU di luar database tidak masuk pencapaian.');
+        }
+
         // Jalankan mesin verifikasi & deduplikasi penuh (mendukung V1, V2, V3 Report Retail, & RETAIL)
-        const { updatedData, stats } = processUploadedWorkbook(wb, file.name, uploadBaseline, priceDatabase);
+        const { updatedData, stats } = processUploadedWorkbook(wb, file.name, uploadBaseline, priceDatabase, skuDatabase);
 
         // Simpan ke localStorage agar bertahan di sesi browser Admin
         localStorage.setItem(CUSTOM_DATA_KEY, JSON.stringify(updatedData));
@@ -1581,7 +1608,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           console.warn('Sinkronisasi dashboard bersama gagal:', sharedSyncError);
           sharedSyncMessage = ' | Sinkron EPP/EPR: jalankan shared_dashboard_data.sql';
         }
-        const summaryMsg = `Template: ${stats.templateVersion} | Terverifikasi: ${stats.verifiedCount.toLocaleString('id-ID')} baris | Sudah terverifikasi: ${stats.alreadyVerifiedCount.toLocaleString('id-ID')} | Kembar input: ${stats.duplicateInInputCount.toLocaleString('id-ID')} | Luar Master: ${stats.outsideMasterCount.toLocaleString('id-ID')}${sharedSyncMessage}`;
+        const summaryMsg = `Template: ${stats.templateVersion} | Terverifikasi: ${stats.verifiedCount.toLocaleString('id-ID')} baris | Sudah terverifikasi: ${stats.alreadyVerifiedCount.toLocaleString('id-ID')} | Kembar input: ${stats.duplicateInInputCount.toLocaleString('id-ID')} | Luar EPR: ${stats.outsideMasterCount.toLocaleString('id-ID')} | Luar SKU: ${stats.outsideSkuCount.toLocaleString('id-ID')} | Kategori tidak dihitung: ${stats.excludedCategoryCount.toLocaleString('id-ID')}${sharedSyncMessage}`;
         
         setUploadStatus({
           type: 'success',
@@ -3425,7 +3452,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       <div className="p-2 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-500/20">
                         <span className="text-2xs text-rose-500 block">Ditolak / Kembar</span>
                         <strong className="mono text-rose-600 text-xs font-bold">
-                          {(lastStats.duplicateCount + lastStats.outsideMasterCount).toLocaleString('id-ID')}
+                          {(lastStats.duplicateCount + lastStats.outsideMasterCount + lastStats.outsideSkuCount + lastStats.excludedCategoryCount).toLocaleString('id-ID')}
                         </strong>
                       </div>
                     </div>
@@ -3436,7 +3463,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     <div className="border border-[var(--border)] rounded-lg p-2.5 bg-[var(--surface-2)] max-h-28 overflow-y-auto text-2xs space-y-1">
                       <div className="font-bold text-slate-700 dark:text-slate-300 mb-1 flex justify-between">
                         <span>Baris Ditolak ({lastStats.rejectedRows.length})</span>
-                        <span className="text-rose-500 font-normal">{lastStats.duplicateCount} Kembar · {lastStats.outsideMasterCount} Luar Master</span>
+                        <span className="text-rose-500 font-normal">{lastStats.duplicateCount} Kembar · {lastStats.outsideMasterCount} Luar EPR · {lastStats.outsideSkuCount} Luar SKU · {lastStats.excludedCategoryCount} Kategori</span>
                       </div>
                       {lastStats.rejectedRows.slice(0, 8).map((rej, i) => (
                         <div key={i} className="flex justify-between items-center py-0.5 border-b border-[var(--border)]/40 last:border-none">

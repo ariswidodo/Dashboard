@@ -87,13 +87,15 @@ export interface VerificationStats {
   duplicateInInputCount: number;
   alreadyVerifiedCount: number;
   outsideMasterCount: number;
+  outsideSkuCount: number;
+  excludedCategoryCount: number;
   totalVerifiedAmount: number;
   templateVersion: string;
   sourceSheet: string;
   rejectedRows: Array<{
     rowNum: number;
     file: string;
-    reason: 'KEMBAR DALAM INPUT' | 'SUDAH TERVERIFIKASI' | 'LUAR DATABASE EPR';
+    reason: 'KEMBAR DALAM INPUT' | 'SUDAH TERVERIFIKASI' | 'LUAR DATABASE EPR' | 'LUAR DATABASE SKU' | 'KATEGORI TIDAK DIHITUNG';
     code?: string;
     name?: string;
     rawText?: string;
@@ -275,7 +277,8 @@ export function processUploadedWorkbook(
   wb: XLSX.WorkBook,
   fileName: string,
   existingData: EprFullData | null,
-  priceDatabase: Record<string, number> = {}
+  priceDatabase: Record<string, number> = {},
+  skuDatabase: Record<string, { categoryProduct?: string; productRebate?: string; description?: string }> = {}
 ): { updatedData: EprFullData; stats: VerificationStats } {
   const sheetNames = wb.SheetNames;
 
@@ -296,6 +299,8 @@ export function processUploadedWorkbook(
     duplicateInInputCount: 0,
     alreadyVerifiedCount: 0,
     outsideMasterCount: 0,
+    outsideSkuCount: 0,
+    excludedCategoryCount: 0,
     totalVerifiedAmount: 0,
     templateVersion: 'V3',
     sourceSheet: '',
@@ -468,6 +473,20 @@ export function processUploadedWorkbook(
         inputDataRows++;
         stats.totalInputRows++;
 
+        const normalizedMaterial = rawMat.toUpperCase();
+        const hasSkuDatabase = Object.keys(skuDatabase).length > 0;
+        const skuInfo = skuDatabase[normalizedMaterial];
+        if (hasSkuDatabase && !skuInfo) {
+          stats.outsideSkuCount++;
+          stats.rejectedRows.push({
+            rowNum: r + 1,
+            file: fileName,
+            reason: 'LUAR DATABASE SKU',
+            rawText: `Material: ${rawMat}`
+          });
+          continue;
+        }
+
         const dDate = parseInvoiceDate(rawDate);
         if (!dDate) continue;
 
@@ -526,6 +545,25 @@ export function processUploadedWorkbook(
         if (templateVer.startsWith('V1') || templateVer.startsWith('V2')) {
           totalPrice = totalPrice / 1.11;
           unitPrice = unitPrice / 1.11;
+        }
+
+        const rawCat = cCategory !== -1 ? String(row[cCategory] || '') : '';
+        const rebateCategory = parseKategori(String(skuInfo?.productRebate || ''));
+        const skuTier = String(skuInfo?.categoryProduct || '').trim().toLowerCase();
+        const cat = parseKategori(rawCat)
+          || rebateCategory
+          || (skuTier === 'low end' || skuTier === 'mid high' ? 'Consumer' : '');
+        if (!cat) {
+          stats.excludedCategoryCount++;
+          stats.rejectedRows.push({
+            rowNum: r + 1,
+            file: fileName,
+            reason: 'KATEGORI TIDAK DIHITUNG',
+            code: resolvedCode,
+            name: rawName,
+            rawText: `Material: ${rawMat} | Tipe: ${skuInfo?.description || '-'} | Kategori: ${rawCat || '-'}`
+          });
+          continue;
         }
 
         const uid = cUID !== -1 ? String(row[cUID] || '') : '';
@@ -591,8 +629,6 @@ export function processUploadedWorkbook(
         const mIdx = getFiscalMonthIndex(dDate); // 0..11
         if (mIdx < 0 || mIdx > 11) continue;
 
-        const rawCat = cCategory !== -1 ? String(row[cCategory] || '') : '';
-        let cat = parseKategori(rawCat) || 'Consumer';
         const programName = String(cProgram !== -1 ? row[cProgram] || '' : '').trim() || 'Reguler (Tanpa Program)';
 
         // Update nilai akumulasi partner
