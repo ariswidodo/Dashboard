@@ -96,6 +96,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const [selectedEppMonth, setSelectedEppMonth] = useState<any | null>(null);
   const [selectedEppEpr, setSelectedEppEpr] = useState<any | null>(null);
   const [selectedEppMonthLabel, setSelectedEppMonthLabel] = useState('Okt 2026');
+  const [pdfReportType, setPdfReportType] = useState<'overview' | 'epp-upload'>('overview');
 
   // Theme: 'light' | 'dark'
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
@@ -1319,6 +1320,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           qty: 0,
           total: 0,
           categories: {},
+          categoryTotals: { Consumer: 0, Consumables: 0, Scanner: 0, Dotmatrix: 0 },
           products: {},
         };
         const category = String(item?.kat || 'Lainnya').trim() || 'Lainnya';
@@ -1327,6 +1329,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         current.qty += Number(item?.qty || 0);
         current.total += Number(item?.net || 0);
         current.categories[category] = (current.categories[category] || 0) + Number(item?.qty || 0);
+        current.categoryTotals[category] = (current.categoryTotals[category] || 0) + Number(item?.net || 0);
         current.products[category] = current.products[category] || {};
         const productDetail = current.products[category][model] || { qty: 0, dates: [] };
         productDetail.qty += Number(item?.qty || 0);
@@ -1395,6 +1398,12 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePrintReport = (reportType: 'overview' | 'epp-upload') => {
+    setPdfReportType(reportType);
+    // Beri React waktu untuk merender laporan yang dipilih sebelum dialog cetak dibuka.
+    window.setTimeout(() => window.print(), 50);
   };
 
   // Upload Excel Handler (Khusus Admin)
@@ -1595,7 +1604,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
           {!isEprUser && (
             <>
               <button
-                onClick={() => window.print()}
+                onClick={() => handlePrintReport('overview')}
                 className="btn btn-secondary"
                 title="Cetak / Share Result ke PDF"
               >
@@ -1872,9 +1881,20 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                       <h2>Data Upload Epson Hub</h2>
                       <p className="card-sub">Apakah Sesuai dengan data yang di Upload di Epson Hub</p>
                     </div>
-                    <span className={`badge ${eppUploadAudit.status === 'match' ? 'badge-emerald' : eppUploadAudit.status === 'mismatch' ? 'badge-rose' : 'badge-amber'}`}>
-                      {eppUploadAudit.status === 'match' ? 'Sesuai' : eppUploadAudit.status === 'mismatch' ? 'Perlu Diperiksa' : 'Belum Ada Rincian'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePrintReport('epp-upload')}
+                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                        title="Share rincian penjualan EPP ke EPR dalam PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Share to PDF</span>
+                      </button>
+                      <span className={`badge ${eppUploadAudit.status === 'match' ? 'badge-emerald' : eppUploadAudit.status === 'mismatch' ? 'badge-rose' : 'badge-amber'}`}>
+                        {eppUploadAudit.status === 'match' ? 'Sesuai' : eppUploadAudit.status === 'mismatch' ? 'Perlu Diperiksa' : 'Belum Ada Rincian'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 mt-4 mb-3">
@@ -3376,7 +3396,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     </div>
 
     {/* Laporan khusus cetak / Share PDF. Tidak tampil pada layar dashboard. */}
-    <div className="pdf-report">
+    <div className={`pdf-report ${pdfReportType === 'overview' ? '' : 'pdf-report-inactive'}`}>
       <div className="pdf-head">
         <div>
           <h1>Pencapaian per EPR</h1>
@@ -3434,6 +3454,58 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         <span>{filteredPartners.length} EPR</span>
         <span className="pdf-credit">EPR Achievement Dashboard</span>
         <span>Data pembelian terverifikasi</span>
+      </div>
+    </div>
+
+    {/* Laporan khusus cetak Data Upload Epson Hub. */}
+    <div className={`pdf-report ${pdfReportType === 'epp-upload' ? '' : 'pdf-report-inactive'}`}>
+      <div className="pdf-head">
+        <div>
+          <h1>Penjualan EPP ke EPR</h1>
+          <div className="pdf-meta">Data Upload Epson Hub · Periode {period.toUpperCase()} · {new Date().toLocaleDateString('id-ID')}</div>
+        </div>
+        <div className="pdf-meta">Epson FY26</div>
+      </div>
+
+      <div className="pdf-sec">
+        <h3>Rincian Penjualan EPP ke EPR</h3>
+        <table className="pdf-table">
+          <thead>
+            <tr>
+              <th>Bulan</th>
+              <th>Kode EPR</th>
+              <th>Nama EPR</th>
+              <th className="num">Consumer</th>
+              <th className="num">Consumables</th>
+              <th className="num">Scanner</th>
+              <th className="num">Dotmatrix</th>
+              <th className="num">Total Penjualan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eppUploadAudit.rows.flatMap((month: any) => (month.eprDetails || []).map((detail: any) => (
+              <tr key={`${month.label}-${detail.code}`}>
+                <td>{month.label}</td>
+                <td className="mono">{detail.code}</td>
+                <td><strong>{detail.name}</strong></td>
+                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Consumer || 0))}</td>
+                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Consumables || 0))}</td>
+                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Scanner || 0))}</td>
+                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Dotmatrix || 0))}</td>
+                <td className="num mono font-bold">{fmtRp(Number(detail.total || 0))}</td>
+              </tr>
+            )))}
+          </tbody>
+        </table>
+        {!eppUploadAudit.hasDetails && (
+          <p className="pdf-empty">Belum ada data penjualan EPP ke EPR pada periode ini.</p>
+        )}
+      </div>
+
+      <div className="pdf-foot">
+        <span>{eppUploadAudit.rows.reduce((count: number, month: any) => count + (month.eprDetails?.length || 0), 0)} rincian EPR</span>
+        <span className="pdf-credit">EPR Achievement Dashboard</span>
+        <span>Data penjualan terverifikasi</span>
       </div>
     </div>
     </>
