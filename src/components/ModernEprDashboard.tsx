@@ -1327,8 +1327,9 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         current.categories[category] = (current.categories[category] || 0) + Number(item?.qty || 0);
         current.categoryTotals[category] = (current.categoryTotals[category] || 0) + Number(item?.net || 0);
         current.products[category] = current.products[category] || {};
-        const productDetail = current.products[category][model] || { qty: 0, dates: [] };
+        const productDetail = current.products[category][model] || { qty: 0, dates: [], total: 0 };
         productDetail.qty += Number(item?.qty || 0);
+        productDetail.total += Number(item?.net || 0);
         if (invoiceDate && !productDetail.dates.includes(invoiceDate)) productDetail.dates.push(invoiceDate);
         current.products[category][model] = productDetail;
         byEpr.set(eprCode, current);
@@ -1363,6 +1364,31 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   const selectedEppRangeLabel = selectedEppRangeRows.length > 1
     ? `${selectedEppRangeRows[0].label} – ${selectedEppRangeRows[selectedEppRangeRows.length - 1].label}`
     : selectedEppRangeRows[0]?.label || 'Belum ada periode';
+
+  const eppUploadPdfRows = useMemo(() => selectedEppRangeRows.flatMap((month: any) =>
+    (month.eprDetails || []).flatMap((detail: any) =>
+      Object.entries(detail.products || {}).flatMap(([category, products]) =>
+        Object.entries(products as Record<string, { qty: number; dates: string[]; total?: number }>).map(([model, product]) => {
+          const invoiceDates = (product.dates || []).map((date) => new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          })).join(', ');
+          return {
+            month: month.label,
+            eprCode: detail.code,
+            eprName: detail.name,
+            category,
+            model,
+            description: productCategoryMap[model.trim().toUpperCase()]?.description || model,
+            qty: Number(product.qty || 0),
+            invoiceDates,
+            total: Number(product.total || 0),
+          };
+        }),
+      ),
+    ),
+  ), [selectedEppRangeRows, productCategoryMap]);
 
   // Reset Filters
   const handleResetFilters = () => {
@@ -3494,35 +3520,38 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
               <th>Bulan</th>
               <th>Kode EPR</th>
               <th>Nama EPR</th>
-              <th className="num">Consumer</th>
-              <th className="num">Consumables</th>
-              <th className="num">Scanner</th>
-              <th className="num">Dotmatrix</th>
+              <th>Category</th>
+              <th>Tipe Produk / Material Code</th>
+              <th className="num">Qty</th>
+              <th>Tanggal Invoice</th>
               <th className="num">Total Penjualan</th>
             </tr>
           </thead>
           <tbody>
-            {selectedEppRangeRows.flatMap((month: any) => (month.eprDetails || []).map((detail: any) => (
-              <tr key={`${month.label}-${detail.code}`}>
-                <td>{month.label}</td>
-                <td className="mono">{detail.code}</td>
-                <td><strong>{detail.name}</strong></td>
-                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Consumer || 0))}</td>
-                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Consumables || 0))}</td>
-                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Scanner || 0))}</td>
-                <td className="num mono">{fmtRp(Number(detail.categoryTotals?.Dotmatrix || 0))}</td>
-                <td className="num mono font-bold">{fmtRp(Number(detail.total || 0))}</td>
+            {eppUploadPdfRows.map((row: any, index: number) => (
+              <tr key={`${row.month}-${row.eprCode}-${row.category}-${row.model}-${index}`}>
+                <td>{row.month}</td>
+                <td className="mono">{row.eprCode}</td>
+                <td><strong>{row.eprName}</strong></td>
+                <td>{row.category}</td>
+                <td>
+                  <strong>{row.description}</strong>
+                  <div className="pdf-subtext mono">{row.model}</div>
+                </td>
+                <td className="num mono">{row.qty.toLocaleString('id-ID')}</td>
+                <td>{row.invoiceDates || '-'}</td>
+                <td className="num mono font-bold">{fmtRp(row.total)}</td>
               </tr>
-            )))}
+            ))}
           </tbody>
         </table>
-        {!eppUploadAudit.hasDetails && (
+        {!eppUploadPdfRows.length && (
           <p className="pdf-empty">Belum ada data penjualan EPP ke EPR pada periode ini.</p>
         )}
       </div>
 
       <div className="pdf-foot">
-        <span>{selectedEppRangeRows.reduce((count: number, month: any) => count + (month.eprDetails?.length || 0), 0)} rincian EPR</span>
+        <span>{eppUploadPdfRows.length} rincian produk</span>
         <span className="pdf-credit">EPR Achievement Dashboard</span>
         <span>Data penjualan terverifikasi</span>
       </div>
