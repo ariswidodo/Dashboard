@@ -49,6 +49,7 @@ export const EPR_ALIASES: Record<string, string> = {
   'hetero niaga': 'EPR-0054',
   'pt hetero niaga global': 'EPR-0054',
   'pt harrisma pratamajaya': 'EPR-0267',
+  'pt harrisma pratama jaya': 'EPR-0267',
   'harrisma': 'EPR-0267',
   'cv raja print solution': 'EPR-0650',
   'raja print': 'EPR-0650',
