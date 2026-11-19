@@ -308,6 +308,7 @@ export function processUploadedWorkbook(
   };
   const acceptedTransactionKeysForData = new Set<string>();
   const acceptedProgramItems: any[] = [];
+  const rejectedProgramItems: any[] = [];
 
   // Buat copy partners dari master & MERGE dengan data existing (baseline) agar data tidak hilang/terhapus!
   const partnersMap = new Map<string, PartnerData>();
@@ -473,20 +474,6 @@ export function processUploadedWorkbook(
         inputDataRows++;
         stats.totalInputRows++;
 
-        const normalizedMaterial = rawMat.toUpperCase();
-        const hasSkuDatabase = Object.keys(skuDatabase).length > 0;
-        const skuInfo = skuDatabase[normalizedMaterial];
-        if (hasSkuDatabase && !skuInfo) {
-          stats.outsideSkuCount++;
-          stats.rejectedRows.push({
-            rowNum: r + 1,
-            file: fileName,
-            reason: 'LUAR DATABASE SKU',
-            rawText: `Material: ${rawMat}`
-          });
-          continue;
-        }
-
         const dDate = parseInvoiceDate(rawDate);
         if (!dDate) continue;
 
@@ -505,6 +492,49 @@ export function processUploadedWorkbook(
             code: rawCode,
             name: rawName,
             rawText: `Kota: ${rawCity || '-'} | Material: ${rawMat}`
+          });
+          continue;
+        }
+
+        const normalizedMaterial = rawMat.toUpperCase();
+        const hasSkuDatabase = Object.keys(skuDatabase).length > 0;
+        const skuInfo = skuDatabase[normalizedMaterial];
+        const rawEppCode = String(cEppCode !== -1 ? row[cEppCode] || '' : '').trim();
+        const rawEppName = String(cEppName !== -1 ? row[cEppName] || '' : '').trim();
+        const rawProgram = String(cProgram !== -1 ? row[cProgram] || '' : '').trim() || 'Reguler (Tanpa Program)';
+        const rawQty = parseFloat(String(cQty !== -1 ? row[cQty] || 0 : 0).replace(/,/g, '')) || 0;
+        const rawDesc = String(cProdDesc !== -1 ? row[cProdDesc] || '' : '').trim();
+        const invoiceDateForUpload = formatInvoiceDate(dDate);
+        const addRejectedProgramItem = (reason: string, category = '') => {
+          rejectedProgramItems.push({
+            epr: resolvedCode,
+            prog: 'Tidak dihitung',
+            source_prog: rawProgram,
+            date: invoiceDateForUpload,
+            model: rawMat,
+            desc: rawDesc,
+            kat: category || String(row[cCategory] || '').trim() || 'Tidak diketahui',
+            epp: rawEppCode,
+            epp_name: rawEppName,
+            eim: rawEppName,
+            qty: rawQty,
+            net: 0,
+            tx: 0,
+            counted: false,
+            upload_status: 'Tidak dihitung',
+            reject_reason: reason,
+          });
+        };
+        if (hasSkuDatabase && !skuInfo) {
+          stats.outsideSkuCount++;
+          addRejectedProgramItem('LUAR DATABASE SKU');
+          stats.rejectedRows.push({
+            rowNum: r + 1,
+            file: fileName,
+            reason: 'LUAR DATABASE SKU',
+            code: resolvedCode,
+            name: rawName,
+            rawText: `Material: ${rawMat}`
           });
           continue;
         }
@@ -555,6 +585,7 @@ export function processUploadedWorkbook(
           || (skuTier === 'low end' || skuTier === 'mid high' ? 'Consumer' : '');
         if (!cat) {
           stats.excludedCategoryCount++;
+          addRejectedProgramItem('KATEGORI TIDAK DIHITUNG', rawCat);
           stats.rejectedRows.push({
             rowNum: r + 1,
             file: fileName,
@@ -571,7 +602,7 @@ export function processUploadedWorkbook(
 
         // 2. Filter data double / kembar (Deduplikasi make_key)
         const invoiceDate = formatInvoiceDate(dDate);
-        const eppCode = String(cEppCode !== -1 ? row[cEppCode] || '' : '').trim();
+        const eppCode = rawEppCode;
         const dedupKey = makeDeduplicationKey(
           resolvedCode,
           invNo,
@@ -600,6 +631,7 @@ export function processUploadedWorkbook(
             name: rawName,
             rawText: `Inv: ${invNo || '-'} | Tanggal: ${invoiceDate} | Material: ${rawMat} | Qty: ${qty}`
           });
+          addRejectedProgramItem('SUDAH TERVERIFIKASI', cat);
           continue;
         }
 
@@ -614,6 +646,7 @@ export function processUploadedWorkbook(
             name: rawName,
             rawText: `Inv: ${invNo || '-'} | Material: ${rawMat} | Qty: ${qty}`
           });
+          addRejectedProgramItem('KEMBAR DALAM INPUT', cat);
           continue;
         }
         seenDedupKeys.add(dedupKey);
@@ -629,7 +662,7 @@ export function processUploadedWorkbook(
         const mIdx = getFiscalMonthIndex(dDate); // 0..11
         if (mIdx < 0 || mIdx > 11) continue;
 
-        const programName = String(cProgram !== -1 ? row[cProgram] || '' : '').trim() || 'Reguler (Tanpa Program)';
+        const programName = rawProgram;
 
         // Update nilai akumulasi partner
         p.monthly_total[mIdx] = (p.monthly_total[mIdx] || 0) + totalPrice;
@@ -698,6 +731,9 @@ export function processUploadedWorkbook(
           qty,
           net: totalPrice,
           tx: 1,
+          counted: true,
+          upload_status: 'Terhitung',
+          reject_reason: '',
         });
       }
     }
@@ -836,6 +872,7 @@ export function processUploadedWorkbook(
     program_items: [
       ...(existingData?.program_items || []),
       ...acceptedProgramItems,
+      ...rejectedProgramItems,
     ],
     verified_transaction_keys: Array.from(new Set([
       ...(existingData?.verified_transaction_keys || []),

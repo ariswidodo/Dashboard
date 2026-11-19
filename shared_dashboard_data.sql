@@ -45,8 +45,15 @@ create table if not exists public.program_transaction_items (
   epp_name text,
   qty numeric not null default 0,
   net_amount numeric not null default 0,
+  counted boolean not null default true,
+  upload_status text not null default 'Terhitung',
+  reject_reason text,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+alter table public.program_transaction_items add column if not exists counted boolean not null default true;
+alter table public.program_transaction_items add column if not exists upload_status text not null default 'Terhitung';
+alter table public.program_transaction_items add column if not exists reject_reason text;
 
 -- RLS hanya menyaring baris; role API tetap membutuhkan privilege tabel.
 -- Dashboard menggunakan role authenticated setelah login, sedangkan anon

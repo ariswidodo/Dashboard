@@ -206,6 +206,9 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         qty: Number(row.qty || 0),
         net: Number(row.net_amount || 0),
         tx: 1,
+        counted: row.counted !== false,
+        upload_status: row.upload_status || (row.counted === false ? 'Tidak dihitung' : 'Terhitung'),
+        reject_reason: row.reject_reason || '',
       }));
 
       const partners = baseData.partners.map((partner) => {
@@ -336,6 +339,9 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       epp_name: item.epp_name || item.eim || '',
       qty: Number(item.qty || 0),
       net_amount: Number(item.net || 0),
+      counted: item.counted !== false,
+      upload_status: item.upload_status || (item.counted === false ? 'Tidak dihitung' : 'Terhitung'),
+      reject_reason: item.reject_reason || '',
     }));
     const { error: deleteProgramError } = await supabase
       .from('program_transaction_items')
@@ -698,7 +704,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
   }, [data, isEprUser, ownPartner]);
 
   const uploadedProgramSummaries = useMemo(() => {
-    const items = Array.isArray(data?.program_items) ? data.program_items : [];
+    const items = Array.isArray(data?.program_items) ? data.program_items.filter((item: any) => item?.counted !== false) : [];
     const rules = data?.program_rules || {};
     const ruleEntries = Object.entries(rules);
     const normalizeProgram = (value: any) => String(value || '').trim().toLowerCase();
@@ -765,7 +771,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     if (!current?.participants?.length) return [];
 
     const rule = data?.program_rules?.[current.program_name] || data?.program_rules?.['Q3 Booster Up'] || {};
-    const items = Array.isArray(data?.program_items) ? data.program_items : [];
+    const items = Array.isArray(data?.program_items) ? data.program_items.filter((item: any) => item?.counted !== false) : [];
     const start = current.start;
     const end = current.end;
     const normalize = (value: any) => String(value || '').trim().toLowerCase();
@@ -1043,7 +1049,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     let totalMidHi = 0;
     let achievedCount = 0;
 
-    const programItems = Array.isArray(data?.program_items) ? data.program_items : [];
+    const programItems = Array.isArray(data?.program_items) ? data.program_items.filter((item: any) => item?.counted !== false) : [];
     let classifiedMixItems = 0;
     filteredPartners.forEach((p) => {
       const { target, actual, ach } = getPartnerPeriodMetrics(p);
@@ -1169,7 +1175,9 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
 
     // Utamakan ledger transaksi terbaru agar snapshot epp_sources lama tidak
     // membuat Admin menampilkan EPR yang tidak ada pada akun EPP.
-    const transactionItems = Array.isArray(data.program_items) ? data.program_items : [];
+    const transactionItems = Array.isArray(data.program_items)
+      ? data.program_items.filter((item: any) => item?.counted !== false)
+      : [];
     if (transactionItems.length > 0) {
       const transactionGrouped = new Map<string, any>();
       transactionItems.forEach((item: any) => {
@@ -1287,12 +1295,13 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         }
       });
     });
-    const ownItems = items.filter((item: any) => {
+    const ownUploadItems = items.filter((item: any) => {
       const itemCode = normalizeEppCode(item?.epp || item?.epp_code);
       const itemName = String(item?.epp_name || item?.eim || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
       return (itemCode && ownEppCodes.has(itemCode))
         || (itemName && Array.from(ownEppNames).some((name) => name && (itemName.includes(name) || name.includes(itemName))));
     });
+    const ownItems = ownUploadItems.filter((item: any) => item?.counted !== false);
     const rows = monthIndexes.map((monthIndex) => {
       const [start, end] = monthBounds[monthIndex];
       const monthItems = ownItems.filter((item: any) => {
@@ -1347,7 +1356,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     const difference = Math.abs(detailTotal - dashboardTotal);
     return {
       rows,
-      items: ownItems,
+      items: ownUploadItems,
       detailTotal,
       dashboardTotal,
       difference,
@@ -1473,6 +1482,8 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         'Kode EPR': item?.epr || '-',
         'Nama EPR': partner?.name || item?.epr || '-',
         Program: item?.prog || 'Reguler (Tanpa Program)',
+        'Status Upload': item?.upload_status || (item?.counted === false ? 'Tidak dihitung' : 'Terhitung'),
+        Alasan: item?.reject_reason || '-',
         Category: item?.kat || '-',
         'Material Code': item?.model || '-',
         'Tipe Produk': productCategoryMap[String(item?.model || '').trim().toUpperCase()]?.description || item?.desc || item?.model || '-',
@@ -1488,10 +1499,10 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       { wch: 14 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
     ];
     detailSheet['!cols'] = [
-      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 34 }, { wch: 30 }, { wch: 16 }, { wch: 18 }, { wch: 34 }, { wch: 10 }, { wch: 18 },
+      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 34 }, { wch: 30 }, { wch: 24 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 34 }, { wch: 10 }, { wch: 18 },
     ];
     if (summaryRows.length) summarySheet['!autofilter'] = { ref: `A1:H${summaryRows.length + 1}` };
-    if (detailRows.length) detailSheet['!autofilter'] = { ref: `A1:J${detailRows.length + 1}` };
+    if (detailRows.length) detailSheet['!autofilter'] = { ref: `A1:L${detailRows.length + 1}` };
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Ringkasan');
     XLSX.utils.book_append_sheet(workbook, detailSheet, 'Detail Penjualan');
     const fileName = `Penjualan_${(ownEppCode || cleanUsername).replace(/[^A-Z0-9-]/gi, '_')}_${selectedEppRangeLabel.replace(/[^A-Z0-9-]+/gi, '_')}.xlsx`;
