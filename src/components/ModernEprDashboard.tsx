@@ -1347,6 +1347,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     const difference = Math.abs(detailTotal - dashboardTotal);
     return {
       rows,
+      items: ownItems,
       detailTotal,
       dashboardTotal,
       difference,
@@ -1390,6 +1391,19 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     ),
   ), [selectedEppRangeRows, productCategoryMap]);
 
+  const selectedEppDetailItems = useMemo(() => {
+    const start = Math.min(selectedEppStartMonthIndex, selectedEppEndMonthIndex);
+    const end = Math.max(selectedEppStartMonthIndex, selectedEppEndMonthIndex);
+    return (eppUploadAudit.items || []).filter((item: any) => {
+      const date = String(item?.date || '').slice(0, 10);
+      const parts = date.split('-').map(Number);
+      if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return false;
+      const month = parts[1];
+      const fiscalMonthIndex = month >= 4 ? month - 4 : month + 8;
+      return fiscalMonthIndex >= start && fiscalMonthIndex <= end;
+    });
+  }, [eppUploadAudit, selectedEppStartMonthIndex, selectedEppEndMonthIndex]);
+
   // Reset Filters
   const handleResetFilters = () => {
     setPeriod('h2');
@@ -1432,6 +1446,55 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
     setPdfReportType(reportType);
     // Beri React waktu untuk merender laporan yang dipilih sebelum dialog cetak dibuka.
     window.setTimeout(() => window.print(), 50);
+  };
+
+  const handleDownloadEppExcel = () => {
+    const summaryRows = selectedEppRangeRows.flatMap((month: any) =>
+      (month.eprDetails || []).map((detail: any) => ({
+        Bulan: month.label,
+        'Kode EPR': detail.code,
+        'Nama EPR': detail.name,
+        Consumer: Number(detail.categoryTotals?.Consumer || 0),
+        Consumables: Number(detail.categoryTotals?.Consumables || 0),
+        Scanner: Number(detail.categoryTotals?.Scanner || 0),
+        Dotmatrix: Number(detail.categoryTotals?.Dotmatrix || 0),
+        'Total Penjualan': Number(detail.total || 0),
+      })),
+    );
+    const monthNames = ['Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar'];
+    const detailRows = selectedEppDetailItems.map((item: any) => {
+      const date = String(item?.date || '').slice(0, 10);
+      const parts = date.split('-').map(Number);
+      const fiscalMonthIndex = parts[1] >= 4 ? parts[1] - 4 : parts[1] + 8;
+      const partner = data?.partners?.find((candidate) => candidate.code === item?.epr);
+      return {
+        Bulan: `${monthNames[fiscalMonthIndex] || '-'} ${fiscalMonthIndex < 9 ? '2026' : '2027'}`,
+        'Tanggal Invoice': date,
+        'Kode EPR': item?.epr || '-',
+        'Nama EPR': partner?.name || item?.epr || '-',
+        Category: item?.kat || '-',
+        'Material Code': item?.model || '-',
+        'Tipe Produk': productCategoryMap[String(item?.model || '').trim().toUpperCase()]?.description || item?.desc || item?.model || '-',
+        Qty: Number(item?.qty || 0),
+        'Total Penjualan': Number(item?.net || 0),
+      };
+    });
+
+    const workbook = XLSX.utils.book_new();
+    const summarySheet = XLSX.utils.json_to_sheet(summaryRows.length ? summaryRows : [{ Keterangan: 'Tidak ada data penjualan pada periode yang dipilih.' }]);
+    const detailSheet = XLSX.utils.json_to_sheet(detailRows.length ? detailRows : [{ Keterangan: 'Tidak ada detail transaksi pada periode yang dipilih.' }]);
+    summarySheet['!cols'] = [
+      { wch: 14 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
+    ];
+    detailSheet['!cols'] = [
+      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 18 }, { wch: 34 }, { wch: 10 }, { wch: 18 },
+    ];
+    if (summaryRows.length) summarySheet['!autofilter'] = { ref: `A1:H${summaryRows.length + 1}` };
+    if (detailRows.length) detailSheet['!autofilter'] = { ref: `A1:I${detailRows.length + 1}` };
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Ringkasan');
+    XLSX.utils.book_append_sheet(workbook, detailSheet, 'Detail Penjualan');
+    const fileName = `Penjualan_${(ownEppCode || cleanUsername).replace(/[^A-Z0-9-]/gi, '_')}_${selectedEppRangeLabel.replace(/[^A-Z0-9-]+/gi, '_')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
   };
 
   // Upload Excel Handler (Khusus Admin)
@@ -1912,12 +1975,12 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => handlePrintReport('epp-upload')}
+                        onClick={handleDownloadEppExcel}
                         className="btn btn-secondary px-2.5 py-1.5 text-xs"
-                        title="Share rincian penjualan EPP ke EPR dalam PDF"
+                        title="Download rincian penjualan EPP ke EPR dalam Excel"
                       >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Share to PDF</span>
+                        <FileDown className="w-3.5 h-3.5" />
+                        <span>Download Excel</span>
                       </button>
                     </div>
                   </div>

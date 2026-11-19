@@ -32,7 +32,7 @@ Login  ──► Deteksi peran otomatis (Supabase Auth)
                ├─► EPP  (computa, topdistribusi, compumart, rakaperkasa)
                │     • Overview: monitoring seluruh EPR (read-only)
                │     • Program Berjalan: pencapaian EPR yang membeli dari EPP tersebut
-               │     • Data Upload Epson Hub: validasi bulanan per EPR, kategori, SKU, qty, dan tanggal invoice
+               │     • Data Upload Epson Hub: pilih rentang bulan dan download Excel penjualan per EPR, kategori, SKU, qty, dan tanggal invoice
                │     • Kontribusi EPP tidak ditampilkan pada akun EPP lain
                │     • Domain login: username@epp26.id
                │
@@ -176,7 +176,7 @@ epr-dashboard/
 | **Program Berjalan** | ✅ Semua peserta + ketentuan | ✅ EPR yang terkait dengan EPP | ✅ Terisolasi: EPR sendiri |
 | **Kontribusi EPP** | ✅ Rekap semua EPP dan EPR | ❌ Tidak ditampilkan | ❌ Tidak ditampilkan |
 | **Upload Data Pembelian EPR** | ✅ Topbar (Modal Impor) | ❌ Tidak Ada | ❌ Tidak Ada |
-| **Data Upload Epson Hub** | ✅ Audit seluruh EPP/EPR | ✅ EPP sendiri per bulan | ❌ Tidak Ada |
+| **Data Upload Epson Hub** | ✅ Audit seluruh EPP/EPR | ✅ Rentang bulan + Download Excel EPP ke EPR | ❌ Tidak Ada |
 
 ### Aturan Sesi Login
 
