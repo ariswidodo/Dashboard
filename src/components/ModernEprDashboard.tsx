@@ -1472,6 +1472,7 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
         'Tanggal Invoice': date,
         'Kode EPR': item?.epr || '-',
         'Nama EPR': partner?.name || item?.epr || '-',
+        Program: item?.prog || 'Reguler (Tanpa Program)',
         Category: item?.kat || '-',
         'Material Code': item?.model || '-',
         'Tipe Produk': productCategoryMap[String(item?.model || '').trim().toUpperCase()]?.description || item?.desc || item?.model || '-',
@@ -1487,10 +1488,10 @@ export const ModernEprDashboard: React.FC<Props> = ({ userEmail, userRole, userE
       { wch: 14 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
     ];
     detailSheet['!cols'] = [
-      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 18 }, { wch: 34 }, { wch: 10 }, { wch: 18 },
+      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 34 }, { wch: 30 }, { wch: 16 }, { wch: 18 }, { wch: 34 }, { wch: 10 }, { wch: 18 },
     ];
     if (summaryRows.length) summarySheet['!autofilter'] = { ref: `A1:H${summaryRows.length + 1}` };
-    if (detailRows.length) detailSheet['!autofilter'] = { ref: `A1:I${detailRows.length + 1}` };
+    if (detailRows.length) detailSheet['!autofilter'] = { ref: `A1:J${detailRows.length + 1}` };
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Ringkasan');
     XLSX.utils.book_append_sheet(workbook, detailSheet, 'Detail Penjualan');
     const fileName = `Penjualan_${(ownEppCode || cleanUsername).replace(/[^A-Z0-9-]/gi, '_')}_${selectedEppRangeLabel.replace(/[^A-Z0-9-]+/gi, '_')}.xlsx`;
