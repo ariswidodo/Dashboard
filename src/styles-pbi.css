@@ -399,13 +399,13 @@ h1 {
   letter-spacing: -0.005em;
   line-height: 1.35;
   white-space: nowrap;
-  animation: disclaimer-marquee 30s linear infinite;
+  animation: disclaimer-marquee 36s linear infinite;
   will-change: transform;
 }
 
 .disclaimer-ticker-track span {
   flex: 0 0 auto;
-  padding-right: 72px;
+  padding-right: 24px;
 }
 
 .disclaimer-ticker-status {
